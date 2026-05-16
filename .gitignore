@@ -1,0 +1,55 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# uv.lock IS committed for reproducible installs — do not ignore it
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# vidaudit
+.vidaudit_cache/
+
+# Extracted frames and temp video artifacts
+*.frames/
+
+# spaCy models (downloaded at install time)
+en_core_web_sm*/
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/*.html
+
+# Eval results (regenerated, not committed)
+eval/results/
+
+# Ruff
+.ruff_cache/
