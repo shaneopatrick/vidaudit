@@ -59,6 +59,12 @@ select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
 [tool.ruff.lint.isort]
 known-first-party = ["vidaudit"]
 
+[tool.ruff.lint.flake8-type-checking]
+# Pydantic resolves field annotations at runtime; with `from __future__ import
+# annotations` the TCH rules would otherwise move these imports into a
+# TYPE_CHECKING block and break model construction.
+runtime-evaluated-base-classes = ["pydantic.BaseModel"]
+
 [tool.mypy]
 python_version = "3.10"
 disallow_untyped_defs = true
