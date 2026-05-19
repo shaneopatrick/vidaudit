@@ -77,8 +77,8 @@ vidaudit/
 | Data models | Pydantic v2 | `BaseModel` everywhere — never `dataclasses` for structured data |
 | Terminal output | Rich | Tables, progress bars, color-coded verdicts |
 | NLP | spaCy (`en_core_web_sm`) | Noun phrase extraction and NER for claim decomposition |
-| Default VLM | Gemini 2.5 Flash | Via `google-genai` SDK. Free-tier rate-limited |
-| Local VLM | Qwen2.5-VL | Via `transformers` + `torch`. Optional, requires GPU |
+| Primary VLM | Qwen2.5-VL-3B (open-weight) | Via `transformers`. Canonical eval backend (DD-16). Developed/run via Colab |
+| Fallback VLM | Gemini 2.5 Flash | Via `google-genai` SDK. Dev convenience + no-GPU path |
 | Frame extraction | ffmpeg (subprocess) | NOT opencv, NOT decord — keep deps minimal |
 | Image handling | Pillow | PIL Images throughout the pipeline |
 | Testing | pytest | With `pytest-asyncio` if needed |
@@ -208,7 +208,7 @@ make check          # lint + typecheck + tests — must pass
 These are intentional choices — don't "fix" them:
 
 1. **Claims-based verification, not text comparison.** Descriptions are decomposed into noun phrases/entities and each is verified independently with a binary VLM question.
-2. **VLM backends are pluggable** via abstract base class (`VLMBackend`). Default is Gemini 2.5 Flash (free tier).
+2. **VLM backends are pluggable** via abstract base class (`VLMBackend`). Canonical eval backend is open-weight Qwen2.5-VL-3B (DD-16); Gemini 2.5 Flash is retained for development and no-GPU users.
 3. **Frame extraction uses ffmpeg subprocess calls** — not opencv, not decord. Keeps the dependency footprint small and avoids C extension build issues.
 4. **Context frames cover the segment span, not a point.** A description covers a time range, so the primary frame is sampled at the segment midpoint and context frames are spread across `[timestamp_start, timestamp_end]` — a claim true only briefly within the span isn't falsely flagged, and this also absorbs motion blur / brief occlusion. When `timestamp_end` is absent the effective end is inferred (next segment's start → video duration for the final segment → capped at `max_segment_span`); if the span collapses to a point, fall back to `t ± context_window`. Inferred ends are recorded in report metadata, never silently fabricated.
 5. **All structured data uses Pydantic models** so results serialize cleanly to JSON and validate at boundaries.

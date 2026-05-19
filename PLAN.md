@@ -169,17 +169,12 @@ and a claim about what appears in that frame.
 Determine whether the claim is visually supported by the frame.
 
 Claim: "{claim}"
-
-"confidence" is YOUR confidence in the verdict you give (1.0 = certain,
-0.0 = pure guess) — NOT the probability that the claim is true.
-
-Respond with ONLY a JSON object, no other text:
-{{
-  "verdict": "supported" | "unsupported" | "uncertain",
-  "confidence": <float 0.0-1.0>,
-  "evidence": "<one sentence explaining what you see or don't see>"
-}}
 ```
+
+Per DD-10, the response shape is enforced by `response_schema=<PydanticModel>`,
+not by the prompt. Per-field semantic guidance (e.g. the definition of
+`confidence`, DD-7) lives in `Field(description=...)` on the response model and
+is shipped to Gemini via the schema — keep it out of the prompt.
 
 - Use the SDK's structured output (`response_mime_type="application/json"` +
   `response_schema`) so responses are valid JSON by construction; regex
@@ -221,17 +216,35 @@ Respond with ONLY a JSON array, no other text:
 
 ### 5. Qwen VL Backend (`vidaudit/vlm/qwen_vl.py`)
 
-**Purpose:** Local open-weight VLM backend for users with GPU access.
+**Purpose:** **Primary** backend for reported eval metrics (DD-16). Open-weight
+Qwen2.5-VL-3B-Instruct via `transformers`. Reproducibility-anchored — a frozen
+checkpoint hash, no risk of silent provider-side behavior change.
 
-**Implementation (STUB for MVP):**
-- Implement the VLMBackend interface
-- Use transformers `Qwen2.5-VL-7B-Instruct` (or 3B for 16GB GPUs)
-- Same prompt strategy as Gemini backend
-- Include a clear docstring: "Requires 24GB+ VRAM for 7B, 16GB for 3B variant"
-- NOT the default — users opt in with `--backend qwen-vl`
+**Implementation:**
+- Use `Qwen/Qwen2.5-VL-3B-Instruct`. 3B is chosen so the canonical eval
+  reproduces on a Colab free T4 (fp16 ~7 GB) or a consumer GPU in 4-bit
+  (~4 GB) — see DD-16.
+- Same prompt strategy as the Gemini backend (single-claim + batched).
+  Greedy decoding (`do_sample=False`) and a pinned model revision (commit
+  SHA, not floating `main`) for determinism (DD-14).
+- Share the verification cache (DD-11) keyed by (frame hash, claim) with
+  the Gemini backend, so backend swaps don't invalidate cached verdicts.
+- Optional 7B variant via `VIDAUDIT_QWEN_MODEL` for a scaling-comparison
+  data point in the eval (see BACKLOG).
 
-**MVP scope:** Implement the class structure and loading logic. Test in Colab notebook only.
-The Gemini backend is the primary path for the weekend MVP.
+**Dependencies:** `transformers`, `torch`, `accelerate` — kept in the `[qwen]`
+optional extra so no-GPU users aren't forced to install ~1.5 GB of CUDA/torch
+wheels.
+
+**Dev workflow:** developed and exercised in Colab. The primary authoring
+machine is Intel macOS (no CUDA/MPS), so local execution is impractical —
+local iteration uses the Gemini backend, canonical eval numbers come from the
+Colab notebook running this backend.
+
+**Edge cases:**
+- Model not downloaded → clear error with the `huggingface-cli download`
+  command
+- OOM → suggest 4-bit quantization (`bitsandbytes`) or the 3B variant if on 7B
 
 ---
 
@@ -445,17 +458,20 @@ This is the sequence to implement. Each step should be a working commit.
 | 1 | `pyproject.toml` + `Makefile` + `.env.example` + skeleton | 30 min | nothing |
 | 2 | `description_parser.py` + `tests/test_description_parser.py` | 1.5 hrs | step 1 |
 | 3 | `frame_sampler.py` + `tests/test_frame_sampler.py` | 1.5 hrs | step 1 |
-| 4 | `vlm/base.py` + `vlm/gemini.py` | 2 hrs | step 1 |
+| 4 | `vlm/base.py` + `vlm/gemini.py` (dev/fallback backend) | 2 hrs | step 1 |
 | 5 | `auditors/object_audit.py` + `tests/test_object_audit.py` | 2 hrs | steps 2, 3, 4 |
 | 6 | `report.py` | 1.5 hrs | step 5 |
 | 7 | `cli.py` | 1.5 hrs | steps 5, 6 |
-| 8 | End-to-end test on a single real video | 1 hr | step 7 |
-| 9 | `eval/finevideo_loader.py` + synthetic mutations | 2 hrs | step 2 |
-| 10 | `eval/run_eval.py` + run in Colab | 2 hrs | steps 7, 9 |
-| 11 | `README.md` with results + Colab notebook | 2 hrs | step 10 |
-| 12 | Polish: type hints, docstrings, .gitignore, demo GIF | 1.5 hr | step 11 |
+| 8 | End-to-end test on a real video (Gemini backend, local) | 1 hr | step 7 |
+| 9 | `vlm/qwen_vl.py` + Colab smoke test (canonical backend, DD-16) | 3 hrs | step 4 |
+| 10 | `eval/finevideo_loader.py` + plausible synthetic + real mutations | 2 hrs | step 2 |
+| 11 | `eval/run_eval.py` — Colab, compares Qwen vs Gemini vs text-baseline | 2.5 hrs | steps 7, 9, 10 |
+| 12 | `README.md` with results table + Colab notebook (reproduction artifact) | 2 hrs | step 11 |
+| 13 | Polish: docstrings, demo CLI output snippet, anything missed | 1.5 hr | step 12 |
 
-**Total: ~19 hrs** (buffer built in — cut vlm/qwen_vl.py and entity-specific logic first)
+**Total: ~24 hrs.** If running behind, cut from the "What to Cut" list
+bottom-up — never cut the Qwen backend or the cross-backend eval; those are
+the deliverable (DD-15, DD-16).
 
 ## What to Cut (Priority Order)
 
@@ -463,14 +479,14 @@ This is a portfolio piece for a benchmarking-focused role — the eval IS the
 deliverable. A rough tool with a rigorous, baseline-compared eval beats a
 polished tool with a hand-wavy one. Cut from the bottom up:
 
-1. **Always keep:** description_parser + frame_sampler + gemini backend +
-   object_audit + report + FineVideo eval with the text-comparison baseline
-   and threshold sweep (this is the credibility — it is NOT optional)
-2. **Keep if possible:** real-hallucination subset; CLI `audit` command polish
-3. **Demote:** `vlm/qwen_vl.py` — stub the class, implement fully post-weekend
-4. **Demote:** `parse` CLI subcommand — nice to have, not essential
-5. **Cut:** Colab notebook — just run eval locally and paste results in README
-6. **Cut:** Demo GIF — a code block in the README showing CLI output is fine
+1. **Always keep:** description_parser + frame_sampler + Gemini backend +
+   Qwen backend + object_audit + report + FineVideo eval comparing the two
+   backends against the text-comparison baseline, with threshold sweep
+   (this is the credibility — it is NOT optional)
+2. **Keep if possible:** real-hallucination subset; Colab notebook as the
+   canonical eval reproduction artifact; CLI `audit` command polish
+3. **Demote:** `parse` CLI subcommand — nice to have, not essential
+4. **Cut:** Demo GIF — a code block in the README showing CLI output is fine
 
 ## Post-Weekend Stretch Goals (Do NOT build this weekend)
 

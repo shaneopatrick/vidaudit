@@ -18,3 +18,21 @@ Items here are clean-slate additions or feature completions, not debt paydown.
   (langdetect/fasttext), which conflicts with the minimal-deps principle
   (DD-4 spirit). Currently we process anyway and spaCy degrades gracefully;
   add detection only if it earns its dependency.
+
+## VLM backends
+
+- **V-JEPA / VideoMAE for temporal-saliency frame sampling.** V-JEPA and
+  VideoMAE are video *representation* models (not VLMs), so they do not
+  replace the verifier — but their embeddings could drive smart frame
+  selection: sample frames where the embedding changes most across a segment,
+  instead of fixed `t ± Δ`. Better-chosen frames mean less work for the VLM
+  and fewer false flags from uninformative samples. Acknowledges the JD-cited
+  model family and is a real ML-eng signal; stretch goal.
+- **Qwen 7B vs 3B scaling comparison.** Run the canonical eval on both
+  `Qwen2.5-VL-3B` and `Qwen2.5-VL-7B` and report the precision/recall delta
+  on hallucination detection. Concrete benchmarking deliverable that directly
+  speaks to "ability to identify the best open-weights model for a given
+  task" — 7B fits Colab's free T4 in 4-bit.
+- **Additional open-weight VLM comparisons.** InternVL3-2B/8B, PaliGemma 2,
+  Pixtral-12B as further data points in the cross-model eval. Only worth
+  doing once the 3B baseline is solid.

@@ -41,7 +41,7 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 
 ## DD-3: Pluggable VLM backends via ABC; default = Gemini 2.5 Flash
 
-- **Date:** 2026-05-16 · **Status:** Accepted
+- **Date:** 2026-05-16 · **Status:** Accepted · *Default refined by DD-16 (2026-05-19)*
 - **Decision:** `VLMBackend` abstract base class. Default backend is **Gemini
   2.5 Flash** (free tier) via `google-genai`. Qwen2.5-VL is an optional local
   backend, opt-in.
@@ -114,11 +114,20 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 ## DD-10: Robust structured output; regex is fallback only
 
 - **Date:** 2026-05-16 · **Status:** Accepted
-- **Decision:** Use the SDK's structured output (`response_mime_type=
-  "application/json"` + `response_schema`) so responses are valid JSON by
-  construction. Regex extraction is a last-resort fallback, not the primary path.
-- **Why:** Prompt-and-pray + regex is fragile and a poor engineering signal for
-  a portfolio piece. Native structured output is more robust and reproducible.
+- **Decision:** Use the SDK's structured output
+  (`response_mime_type="application/json"` + `response_schema=<PydanticModel>`)
+  so responses are valid JSON *and* typed at the boundary. Pass Pydantic
+  `BaseModel` classes directly as `response_schema` — not raw JSON-Schema
+  dicts, not prompt-engineered "respond with JSON" hints. Per-field semantic
+  guidance (e.g. the precise meaning of `confidence`, DD-7) lives in Pydantic
+  `Field(description=...)` so the schema description shipped to the model and
+  the data class share one source of truth. Regex extraction is a last-resort
+  fallback only, not the primary path.
+- **Why:** Prompt-and-pray + regex is fragile and a poor engineering signal
+  for a portfolio piece. Native structured output is more robust and
+  reproducible. Pydantic schemas additionally give validated, typed Python
+  objects back from the SDK (`response.parsed`), removing one layer of manual
+  parsing and keeping the model contract co-located with the data class.
 
 ## DD-11: Cache VLM verifications, not just frames
 
@@ -169,3 +178,35 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 - **Why:** This is a portfolio piece for a benchmarking-focused role. A rough
   tool with a rigorous, baseline-compared eval beats a polished tool with a
   hand-wavy one. The cut list in PLAN.md reflects this ordering.
+
+## DD-16: Canonical backend is open-weight Qwen2.5-VL-3B; Gemini is dev/fallback
+
+- **Date:** 2026-05-19 · **Status:** Accepted *(refines DD-3)*
+- **Decision:** Reported eval metrics (DD-15) run on **Qwen2.5-VL-3B-Instruct**
+  via `transformers`. Gemini 2.5 Flash is retained as a development backend
+  and a no-GPU fallback for users who can't run a local VLM. The Qwen backend
+  is no longer a stub — it ships as a real implementation.
+- **Why:** The target role hires for "ability to identify the best
+  open-weights model for a given task" and explicit VLM expertise; defaulting
+  to a closed model contradicts the stated hiring criterion. Open weights are
+  also more reproducible (DD-14) — a Qwen checkpoint is frozen by hash forever,
+  whereas a Gemini model ID can be deprecated or shift behavior. The
+  cross-backend comparison itself becomes the headline eval result (DD-13).
+- **Why 3B and not 7B/72B:** 3B fits Colab's free T4 in fp16 (~7 GB) and
+  consumer GPUs in 4-bit (~4 GB), so a reviewer can actually reproduce the
+  numbers. 7B is run as a scaling-comparison data point if quota permits
+  (BACKLOG).
+- **Consequences:** Dual-backend dev workflow — Gemini iterated locally on
+  Intel/no-GPU machines, Qwen developed and exercised via Colab. The README
+  must document both paths. `transformers` + `torch` stay in the `qwen`
+  optional extra so the no-GPU install path remains lean.
+- **Rejected:** Open-weight-only (drop Gemini). Removes the local-dev
+  feedback loop on machines without CUDA/MPS and adds friction for a reviewer
+  without GPU access.
+- **Not the verifier (clarification re: JD references):** V-JEPA and
+  VideoMAE are *representation* models, not VLMs — no language conditioning,
+  no VQA capability. They cannot answer "Is X visible?" and so are not
+  candidates for the verifier role. A stretch use (temporal-saliency frame
+  sampling) is recorded in BACKLOG. Similarly, QwQ-32B is a text-only
+  reasoning model, not a VLM — easy to confuse with the Qwen-VL family but
+  unrelated.
