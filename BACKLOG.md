@@ -36,3 +36,28 @@ Items here are clean-slate additions or feature completions, not debt paydown.
 - **Additional open-weight VLM comparisons.** InternVL3-2B/8B, PaliGemma 2,
   Pixtral-12B as further data points in the cross-model eval. Only worth
   doing once the 3B baseline is solid.
+
+## Auditor capabilities
+
+- **Action / event verification (multi-frame temporal reasoning).** Current
+  single-frame verification (DD-1) is precise on static visual facts (objects,
+  entities, attributes) but structurally weak on action/event claims like
+  "passing each other", "walking towards", "talking to" — an action exists
+  *across time*, not in any one frame.
+  - **Worked example** (smoke run, 2026-05-19): a description with
+    *"Two yellow tram cars pass each other"* over a 5s segment. The two-tram
+    moment is brief (~1.5s) and not present in the segment's primary or
+    boundary frames. Gemini correctly returned "a single long yellow train,
+    not two distinct tram cars" on every sampled frame and the auditor
+    flagged it as a hallucination — *correct given the single-frame contract,
+    but missed the true brief event*.
+  - **Possible fixes (post-MVP):**
+    1. Denser segment sampling (N=5+ frames spread across long segments) —
+       boundary fix, doesn't address actions principle-ly.
+    2. Verb-aware claim decomposition in the parser — when a verb relates two
+       noun phrases, emit static sub-claims and an action-claim marker.
+    3. A separate action-verifier path using a video-native VLM (e.g.,
+       Qwen2.5-VL with multi-frame input, or VideoLLaMA-3) for action claims
+       only.
+  - **For the eval:** report static-claim and action-claim subsets separately
+    so the static-claim numbers aren't dragged down by an acknowledged gap.
