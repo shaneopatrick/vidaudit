@@ -48,6 +48,23 @@ def test_extract_claims_filters_generic_phrases() -> None:
     assert extract_claims("The camera slowly pans across the empty scene.") == []
 
 
+def test_extract_claims_dedupes_object_against_entity_with_article() -> None:
+    """Smoke regression: 'the Eiffel Tower' (entity) must subsume 'eiffel tower' (object).
+
+    The entity span includes the leading article; the object form strips it.
+    Without normalising the entity for comparison, the same landmark gets
+    verified twice — wasting a VLM call and double-counting toward
+    hallucination_count.
+    """
+    claims = extract_claims("A woman walks past the Eiffel Tower.")
+    eiffel_mentions = [c for c in claims if "eiffel" in c.text.lower()]
+
+    assert len(eiffel_mentions) == 1, (
+        f"expected one Eiffel Tower claim after dedup, got: "
+        f"{[(c.text, c.claim_type) for c in eiffel_mentions]}"
+    )
+
+
 def test_extract_claims_dedupes_subspan() -> None:
     claims = extract_claims("There is a jacket. There is a red jacket.")
     objects = _by_type(claims, "object")

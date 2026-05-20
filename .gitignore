@@ -30,10 +30,13 @@ env/
 !.env.example
 
 # Testing
+.data/
 .pytest_cache/
 .coverage
 htmlcov/
 .mypy_cache/
+
+.docs/
 
 # vidaudit
 .vidaudit_cache/

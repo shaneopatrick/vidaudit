@@ -23,6 +23,7 @@ dependencies = [
     "spacy>=3.7",
     "google-genai>=0.3",
     "pillow>=10.2",
+    "python-dotenv>=1.2.2",
 ]
 
 [project.optional-dependencies]

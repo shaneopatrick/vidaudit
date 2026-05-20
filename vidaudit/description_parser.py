@@ -90,13 +90,16 @@ def _load_spacy() -> spacy.Language:
     return spacy.load(_SPACY_MODEL)
 
 
-def _clean_noun_chunk(chunk: spacy.tokens.Span) -> str:
+def _normalize_span(span: spacy.tokens.Span) -> str:
     """Strip leading determiners/pronouns/possessives and normalise case.
 
-    "A woman" -> "woman", "the Eiffel Tower" -> "eiffel tower". Returns an
-    empty string if nothing visually meaningful remains (e.g. a bare pronoun).
+    "A woman" -> "woman", "the Eiffel Tower" -> "eiffel tower". Used both to
+    produce object-claim text from noun chunks and to normalise entity spans
+    for object-vs-entity dedup (so "the Eiffel Tower" entity subsumes the
+    "eiffel tower" object form). Returns "" if nothing visually meaningful
+    remains (e.g. a bare pronoun).
     """
-    tokens = list(chunk)
+    tokens = list(span)
     while tokens and (tokens[0].pos_ in {"DET", "PRON"} or tokens[0].dep_ == "poss"):
         tokens = tokens[1:]
     return " ".join(t.text for t in tokens).strip().lower()
@@ -123,19 +126,22 @@ def extract_claims(description: str) -> list[Claim]:
 
     # (start_char, claim_type, text) — start_char gives a deterministic order.
     candidates: list[tuple[int, ClaimType, str]] = []
+    # Article-stripped, lowercased entity forms — used to dedup object claims
+    # against entities (e.g. drop the "eiffel tower" object when "the Eiffel
+    # Tower" is already an entity, even though the strings differ literally).
+    entity_normalized: set[str] = set()
     for ent in doc.ents:
         if ent.label_ in _ENTITY_LABELS:
             text = ent.text.strip()
             if text:
                 candidates.append((ent.start_char, "entity", text))
+                entity_normalized.add(_normalize_span(ent))
     for chunk in doc.noun_chunks:
         if chunk.root.lemma_.lower() in _GENERIC_HEADS:
             continue
-        text = _clean_noun_chunk(chunk)
+        text = _normalize_span(chunk)
         if text and text not in _GENERIC_HEADS:
             candidates.append((chunk.start_char, "object", text))
-
-    entity_texts = {t.lower() for _, ct, t in candidates if ct == "entity"}
 
     # Drop object spans subsumed by a longer object span (whole-word), and any
     # object that is really a named entity. Process longest-first so the most
@@ -148,7 +154,7 @@ def extract_claims(description: str) -> list[Claim]:
             keep.add(cand)
             continue
         low = text.lower()
-        if low in entity_texts:
+        if low in entity_normalized:
             continue
         if any(low == k or _is_subspan(low, k) for k in kept_objects):
             continue
