@@ -47,7 +47,7 @@ def _cache_key(video_path: Path, t: float) -> str:
     return hashlib.sha1(raw.encode()).hexdigest()
 
 
-def _video_duration(video_path: Path) -> float:
+def get_video_duration(video_path: Path) -> float:
     """Return the video duration in seconds via ffprobe.
 
     Raises:
@@ -155,7 +155,7 @@ def sample_frames(
     if not video_path.exists():
         raise FileNotFoundError(f"Video not found: {video_path}")
 
-    duration = _video_duration(video_path)
+    duration = get_video_duration(video_path)
 
     frames: dict[float, list[Image.Image]] = {}
     for t in timestamps:

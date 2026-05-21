@@ -66,6 +66,11 @@ known-first-party = ["vidaudit"]
 # TYPE_CHECKING block and break model construction.
 runtime-evaluated-base-classes = ["pydantic.BaseModel"]
 
+[tool.ruff.lint.flake8-bugbear]
+# Typer requires its option/argument descriptors in argument defaults; that's
+# the documented API and the calls are effectively immutable singletons.
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
+
 [tool.mypy]
 python_version = "3.10"
 disallow_untyped_defs = true
