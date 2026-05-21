@@ -296,25 +296,41 @@ def test_cli_parse_prints_claims(tmp_path: Path, descriptions_file: Path) -> Non
     assert "A child laughs" in result.output
 
 
-def test_cli_audit_rejects_qwen_backend_with_clear_message(
-    tmp_path: Path, descriptions_file: Path
-) -> None:
-    video = tmp_path / "v.mp4"
-    video.write_bytes(b"x")
+def test_cli_audit_help_lists_qwen_flags() -> None:
+    """--qwen-revision and --qwen-4bit must surface in audit --help."""
     runner = CliRunner()
+    result = runner.invoke(app, ["audit", "--help"], env={"COLUMNS": "200"})
 
-    result = runner.invoke(
-        app,
-        [
-            "audit",
-            "--video",
-            str(video),
-            "--descriptions",
-            str(descriptions_file),
-            "--backend",
-            "qwen",
-        ],
+    assert result.exit_code == 0
+    assert "--qwen-revision" in result.output
+    assert "--qwen-4bit" in result.output
+
+
+def test_build_backend_qwen_uses_injected_runner_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Smoke test the wiring without loading the real model.
+
+    We monkeypatch ``QwenVLBackend`` itself with a sentinel that records the
+    kwargs it receives — proves the CLI forwards --qwen-revision / --qwen-4bit
+    correctly without paying the multi-GB transformers import cost.
+    """
+    seen: dict[str, object] = {}
+
+    class _FakeQwen:
+        def __init__(self, **kwargs: object) -> None:
+            seen.update(kwargs)
+            self.model_id = "fake/qwen"
+
+    monkeypatch.setattr(cli, "QwenVLBackend", _FakeQwen)
+
+    backend = cli._build_backend(
+        cli.Backend.qwen,
+        model=None,
+        min_interval=0.0,
+        qwen_revision="abc123",
+        qwen_4bit=True,
     )
 
-    assert result.exit_code != 0
-    assert "qwen" in result.output.lower() or "not yet implemented" in result.output.lower()
+    assert backend.model_id == "fake/qwen"
+    assert seen["revision"] == "abc123"
+    assert seen["load_in_4bit"] is True
+    assert seen["model"] == "Qwen/Qwen2.5-VL-3B-Instruct"  # default from model_from_env()

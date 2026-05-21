@@ -34,6 +34,7 @@ from vidaudit.description_parser import parse_descriptions
 from vidaudit.frame_sampler import get_video_duration, sample_frames
 from vidaudit.report import AuditReport, build_report, render_terminal
 from vidaudit.vlm.gemini import GeminiBackend
+from vidaudit.vlm.qwen_vl import QwenVLBackend, model_from_env
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -251,6 +252,16 @@ def audit(
         "--min-interval",
         help="Seconds between API calls (Gemini free-tier pacing).",
     ),
+    qwen_revision: str | None = typer.Option(
+        None,
+        "--qwen-revision",
+        help="Pin a Qwen model commit SHA for reproducible eval runs.",
+    ),
+    qwen_4bit: bool = typer.Option(
+        False,
+        "--qwen-4bit",
+        help="Load the Qwen model in 4-bit (requires bitsandbytes).",
+    ),
     verbose: bool = typer.Option(False, "--verbose"),
 ) -> None:
     """Run the full audit pipeline and write a report."""
@@ -258,7 +269,13 @@ def audit(
     _setup_logging(verbose)
 
     console = Console()
-    vlm = _build_backend(backend, model, min_interval)
+    vlm = _build_backend(
+        backend,
+        model=model,
+        min_interval=min_interval,
+        qwen_revision=qwen_revision,
+        qwen_4bit=qwen_4bit,
+    )
 
     report = run_audit_pipeline(
         video_path=video,
@@ -304,13 +321,26 @@ def parse_cmd(
     console.print(f"[bold]{len(segments)}[/] segments, [bold]{total}[/] claims total.")
 
 
-def _build_backend(backend: Backend, model: str | None, min_interval: float) -> VLMBackend:
+def _build_backend(
+    backend: Backend,
+    *,
+    model: str | None,
+    min_interval: float,
+    qwen_revision: str | None = None,
+    qwen_4bit: bool = False,
+) -> VLMBackend:
     if backend is Backend.gemini:
         if model is not None:
             return GeminiBackend(model=model, min_interval_seconds=min_interval)
         return GeminiBackend(min_interval_seconds=min_interval)
     if backend is Backend.qwen:
-        raise typer.BadParameter("Qwen backend not yet implemented. Use --backend gemini for now.")
+        # ``model`` defaults to None — fall through to env override (DD-16
+        # optional 7B path) then the qwen_vl default.
+        return QwenVLBackend(
+            model=model or model_from_env(),
+            revision=qwen_revision,
+            load_in_4bit=qwen_4bit,
+        )
     raise typer.BadParameter(f"Unknown backend: {backend}")
 
 

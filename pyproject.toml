@@ -27,7 +27,16 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-qwen = ["transformers>=4.45", "torch>=2.2"]
+# Qwen2.5-VL support was added in transformers 4.49 — earlier versions
+# don't ship `Qwen2_5_VLForConditionalGeneration`.
+qwen = [
+    "transformers>=4.49",
+    "torch>=2.2",
+    "accelerate>=0.30",
+]
+# 4-bit quantization (consumer-GPU path): opt-in because bitsandbytes
+# only ships CUDA wheels.
+qwen-4bit = ["bitsandbytes>=0.43"]
 eval = ["datasets>=2.20"]
 
 [project.scripts]
@@ -53,6 +62,10 @@ packages = ["vidaudit"]
 [tool.ruff]
 target-version = "py310"
 line-length = 99
+# Colab notebooks are reproduction artifacts, not first-class source —
+# their cell-by-cell prose and !shell lines aren't worth contorting to
+# fit Python lint rules.
+extend-exclude = ["notebooks"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "TCH"]
