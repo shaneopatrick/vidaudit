@@ -12,8 +12,8 @@ segment.
 
 ## Why
 
-Production video-indexing systems (e.g. Moments Lab's MXT-2) generate automated
-time-coded descriptions of video content. Those descriptions sometimes
+Production video-indexing systems generate automated time-coded 
+descriptions of video content. Those descriptions sometimes
 hallucinate — naming objects, people, or landmarks that aren't actually on
 screen. Academic work in this space (VideoHallucer, ViBe, MESH) ships
 *benchmarks*, not a reusable evaluation tool. `vidaudit` fills that gap with a
