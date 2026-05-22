@@ -136,6 +136,10 @@ class EvalSample(BaseModel):
     original_span: str | None = None
     mutated_span: str | None = None
     source: Literal["synthetic", "real"]
+    # Hand-label for the real subset (DD-13): True if the caption contains a
+    # hallucination, False if clean, None if not yet labeled. Synthetic samples
+    # derive their ground truth from ``mutation_type`` and ignore this.
+    real_is_hallucinated: bool | None = None
 
 
 _SAMPLES_ADAPTER = TypeAdapter(list[EvalSample])
