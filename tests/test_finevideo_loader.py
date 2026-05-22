@@ -258,6 +258,64 @@ def test_chapters_from_row_joins_activities_when_no_description() -> None:
     assert chapters[0].description == "running jumping"
 
 
+def test_chapters_from_row_handles_real_finevideo_schema() -> None:
+    """Real FineVideo: nested HH:MM:SS timecodes, activities, no flat description."""
+    row = {
+        "json": {
+            "content_metadata": {
+                "scenes": [
+                    {
+                        "title": "Introductory Scenes",
+                        "timestamps": {
+                            "start_timestamp": "00:00:00.000",
+                            "end_timestamp": "00:00:28.779",
+                        },
+                        "activities": [
+                            {"description": "Sara stands in front of a sign."},
+                            {"description": "Sara explains heavy equipment."},
+                        ],
+                    },
+                    {
+                        "title": "Benefits",
+                        "timestamps": {
+                            "start_timestamp": "00:01:16.034",
+                            "end_timestamp": "00:02:05.500",
+                        },
+                        "activities": [{"description": "Paulo speaks about the course."}],
+                    },
+                ]
+            }
+        }
+    }
+
+    chapters = chapters_from_row(row, "vid5")
+
+    assert len(chapters) == 2
+    assert chapters[0].timestamp_start == 0.0
+    assert chapters[0].timestamp_end == 28.779
+    assert (
+        chapters[0].description == "Sara stands in front of a sign. Sara explains heavy equipment."
+    )
+    # 00:01:16.034 -> 76.034s
+    assert abs(chapters[1].timestamp_start - 76.034) < 1e-6
+
+
+def test_chapters_from_row_falls_back_to_title() -> None:
+    row = {
+        "json": {
+            "content_metadata": {
+                "scenes": [{"title": "Opening", "timestamps": {"start_timestamp": "00:00:05.000"}}]
+            }
+        }
+    }
+
+    chapters = chapters_from_row(row, "vid6")
+
+    assert len(chapters) == 1
+    assert chapters[0].description == "Opening"
+    assert chapters[0].timestamp_start == 5.0
+
+
 # ---- dataset I/O ----------------------------------------------------------
 
 

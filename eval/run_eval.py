@@ -377,7 +377,13 @@ def make_frame_for(
 
     Samples the primary frame at the segment midpoint with context frames
     across the span (DD-9, simplified: explicit-end midpoint). Returns ``None``
-    if the video is missing or the sampler yields nothing.
+    if the video is missing, the sampler yields nothing, or extraction fails.
+
+    Frame extraction failures (e.g. a FineVideo metadata timestamp that lands
+    past the last decodable frame near end-of-video) are caught and skipped:
+    this is a batch eval over many videos, so one unreadable frame must not
+    abort the whole run. The single-video CLI keeps the stricter behavior of
+    raising — there a bad frame is a real problem the user should see.
     """
     from vidaudit.frame_sampler import sample_frames
 
@@ -393,7 +399,16 @@ def make_frame_for(
         else:
             primary = sample.timestamp_start
             window = context_window
-        frames = sample_frames(path, [primary], context_window=window).get(primary)
+        try:
+            frames = sample_frames(path, [primary], context_window=window).get(primary)
+        except RuntimeError as exc:
+            logger.warning(
+                "Frame extraction failed for %s @ %.1fs — skipping: %s",
+                sample.video_id,
+                primary,
+                exc,
+            )
+            return None
         return frames or None
 
     return _frame_for

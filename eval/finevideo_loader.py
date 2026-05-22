@@ -321,17 +321,29 @@ def build_real_samples(
 def chapters_from_row(row: dict, video_id: str) -> list[FineVideoChapter]:
     """Extract chapters from one FineVideo dataset row.
 
-    FineVideo stores rich JSON metadata per video. The relevant shape::
+    FineVideo stores rich JSON metadata per video under ``content_metadata``.
+    Each scene's times are nested timecode strings and there is no flat
+    per-scene ``description`` — the visual content lives in ``activities``::
 
         row["json"]["content_metadata"]["scenes"] = [
-            {"start_time": <s>, "end_time": <s>, "description": "..."},
+            {
+                "title": "Introductory Scenes",
+                "timestamps": {
+                    "start_timestamp": "00:00:00.000",
+                    "end_timestamp": "00:00:28.779",
+                },
+                "activities": [{"description": "...", "timestamp": {...}}, ...],
+            },
             ...
         ]
 
-    ``row["json"]`` may be a dict or a JSON-encoded string. Scenes missing a
-    usable description or start time are skipped. Tolerant of schema drift —
-    several plausible key spellings are accepted — because the dataset's
-    metadata layout has shifted across releases.
+    Per scene the description is taken from (in order) a flat ``description`` /
+    ``text`` field, the joined ``activities`` descriptions, or the ``title``.
+    Times accept numeric seconds, plain numeric strings, or ``HH:MM:SS.mmm``
+    timecodes — and either flat keys or the nested ``timestamps`` block.
+    ``row["json"]`` may be a dict or a JSON-encoded string. Scenes with no
+    usable description or start time are skipped. Deliberately tolerant of
+    schema drift across dataset releases.
     """
     meta = row.get("json")
     if isinstance(meta, str):
@@ -356,11 +368,12 @@ def chapters_from_row(row: dict, video_id: str) -> list[FineVideoChapter]:
             scene.get("description")
             or scene.get("text")
             or _join_activities(scene.get("activities"))
+            or scene.get("title")
         )
-        start = _first_float(scene, ("start_time", "timestamp_start", "start"))
+        start = _scene_time(scene, ("start_time", "timestamp_start", "start"), "start_timestamp")
         if not description or start is None:
             continue
-        end = _first_float(scene, ("end_time", "timestamp_end", "end"))
+        end = _scene_time(scene, ("end_time", "timestamp_end", "end"), "end_timestamp")
         chapters.append(
             FineVideoChapter(
                 video_id=video_id,
@@ -379,16 +392,38 @@ def _join_activities(activities: object) -> str:
     return " ".join(p for p in parts if p).strip()
 
 
-def _first_float(scene: dict, keys: tuple[str, ...]) -> float | None:
-    for key in keys:
-        value = scene.get(key)
-        if isinstance(value, (int, float)):
-            return float(value)
-        if isinstance(value, str):
-            try:
-                return float(value)
-            except ValueError:
-                continue
+def _parse_timecode(value: object) -> float | None:
+    """Parse seconds from a number, numeric string, or ``HH:MM:SS.mmm`` timecode."""
+    if isinstance(value, (int, float)):
+        return float(value)
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if not text:
+        return None
+    try:
+        return float(text)
+    except ValueError:
+        pass
+    seconds = 0.0
+    for part in text.split(":"):
+        try:
+            seconds = seconds * 60 + float(part)
+        except ValueError:
+            return None
+    return seconds
+
+
+def _scene_time(scene: dict, flat_keys: tuple[str, ...], nested_key: str) -> float | None:
+    """Resolve a scene time from flat keys or the nested ``timestamps`` block."""
+    for key in flat_keys:
+        if key in scene:
+            parsed = _parse_timecode(scene[key])
+            if parsed is not None:
+                return parsed
+    timestamps = scene.get("timestamps")
+    if isinstance(timestamps, dict):
+        return _parse_timecode(timestamps.get(nested_key))
     return None
 
 
