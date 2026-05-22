@@ -8,7 +8,7 @@ function (no I/O at all).
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import pytest
 from PIL import Image
@@ -17,7 +17,7 @@ from typer.testing import CliRunner
 from vidaudit import cli
 from vidaudit.cli import app, resolve_segment_plan, run_audit_pipeline
 from vidaudit.description_parser import Claim, DescriptionSegment
-from vidaudit.vlm.base import Verdict, VerificationResult, VLMBackend
+from vidaudit.vlm.base import VerificationResult, VLMBackend
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -47,7 +47,7 @@ class _FakeVLM(VLMBackend):
     def verify_claim(self, image: Image.Image, claim: str) -> VerificationResult:
         return VerificationResult(
             claim=claim,
-            verdict=cast("Verdict", "supported"),
+            verdict="supported",
             confidence=0.9,
             evidence="ok",
         )

@@ -19,7 +19,10 @@ from vidaudit import frame_sampler
 from vidaudit.frame_sampler import sample_frames
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from pathlib import Path
+
+    FakeRun = Callable[..., subprocess.CompletedProcess[object]]
 
 
 def _png_bytes() -> bytes:
@@ -34,7 +37,7 @@ def _fake_run_factory(
     duration: float = 10.0,
     ffprobe_returncode: int = 0,
     ffmpeg_returncode: int = 0,
-) -> tuple[object, list[list[str]]]:
+) -> tuple[FakeRun, list[list[str]]]:
     """Return (fake subprocess.run, captured-calls list)."""
     png = _png_bytes()
     calls: list[list[str]] = []
