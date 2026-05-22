@@ -12,7 +12,7 @@ lint:
 	uv run ruff check --fix .
 
 typecheck:
-	uv run mypy vidaudit/
+	uv run mypy vidaudit/ eval/ tests/
 
 check: lint typecheck test
 
