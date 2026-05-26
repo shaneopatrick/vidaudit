@@ -10,11 +10,13 @@ from __future__ import annotations
 from eval.finevideo_loader import EvalSample, MutationType
 from eval.run_eval import (
     ConfusionMatrix,
+    CrossModelReport,
     EvalReport,
     Outcome,
     classify_baseline,
     classify_vidaudit,
     ground_truth_positive,
+    run_cross_model_eval,
     run_eval,
     target_span_extracted,
     text_similarity,
@@ -312,4 +314,137 @@ def test_eval_report_json_round_trip() -> None:
     report = run_eval([_mutated(), _clean()], _sweep_auditor, lambda _s: None)
     dumped = report.model_dump_json()
     loaded = EvalReport.model_validate_json(dumped)
+    assert loaded == report
+
+
+# ---- run_cross_model_eval -------------------------------------------------
+
+
+def _real_pos(caption: str) -> EvalSample:
+    return EvalSample(
+        video_id="v",
+        timestamp_start=0.0,
+        timestamp_end=2.0,
+        clean_description="A man sits at a desk.",
+        mutated_description=caption,
+        source="real",
+        real_is_hallucinated=True,
+    )
+
+
+def _real_neg(caption: str) -> EvalSample:
+    return EvalSample(
+        video_id="v",
+        timestamp_start=0.0,
+        timestamp_end=2.0,
+        clean_description="A man sits at a desk.",
+        mutated_description=caption,
+        source="real",
+        real_is_hallucinated=False,
+    )
+
+
+def _synthetic_auditor(sample: EvalSample) -> SegmentAuditResult:
+    """Shared synthetic behavior: flag the target on mutated, nothing on clean."""
+    if sample.mutation_type is not None:
+        return _audit_with({sample.mutated_span or "x": True})
+    return _audit_with({"obj": False})
+
+
+def _self_blind_auditor(sample: EvalSample, _ct: float) -> SegmentAuditResult:
+    """Generator model: rubber-stamps its own real captions (flags nothing)."""
+    if sample.source == "synthetic":
+        return _synthetic_auditor(sample)
+    return _audit_with({"phantom": False})  # never flags real → misses hallucinations
+
+
+def _cross_auditor(sample: EvalSample, _ct: float) -> SegmentAuditResult:
+    """A different model: flags the planted 'phantom' it actually doesn't see."""
+    if sample.source == "synthetic":
+        return _synthetic_auditor(sample)
+    return _audit_with({"phantom": "phantom" in sample.mutated_description.lower()})
+
+
+def test_cross_model_eval_surfaces_self_audit_blind_spot() -> None:
+    samples = [
+        _mutated(),
+        _clean(),
+        _real_pos("A phantom hovers over the desk."),  # hallucinated caption
+        _real_neg("A man sits at a desk."),  # accurate caption
+    ]
+
+    report = run_cross_model_eval(
+        samples,
+        auditors={"qwen": _self_blind_auditor, "gemini": _cross_auditor},
+        baseline_caption_for=None,
+        generator_model="qwen",
+    )
+
+    by_name = {v.verifier: v for v in report.verifiers}
+    assert by_name["qwen"].is_generator is True
+    assert by_name["gemini"].is_generator is False
+
+    def real_cm(v_name: str) -> ConfusionMatrix:
+        return next(m.confusion for m in by_name[v_name].metrics if m.subset == "real")
+
+    # Self-audit (qwen generated these captions) misses the hallucination…
+    assert real_cm("qwen").tp == 0
+    assert real_cm("qwen").fn == 1
+    # …while the cross-audit (gemini) catches it.
+    assert real_cm("gemini").tp == 1
+    assert real_cm("gemini").fn == 0
+    # Neither false-positives on the accurate real caption.
+    assert real_cm("qwen").fp == 0
+    assert real_cm("gemini").fp == 0
+
+
+def test_cross_model_eval_synthetic_is_clean_model_comparison() -> None:
+    samples = [_mutated(), _clean()]
+    report = run_cross_model_eval(
+        samples,
+        auditors={"qwen": _self_blind_auditor, "gemini": _cross_auditor},
+        generator_model="qwen",
+    )
+    # Both verifiers behave identically on synthetic (no self-consistency there).
+    for v in report.verifiers:
+        syn = next(m.confusion for m in v.metrics if m.subset == "synthetic")
+        assert syn.tp == 1 and syn.fp == 0 and syn.tn == 1
+
+
+def test_cross_model_eval_scores_baseline_once() -> None:
+    samples = [_mutated(), _clean()]
+    calls: list[str] = []
+
+    def caption_for(sample: EvalSample) -> str:
+        calls.append(sample.mutated_description)
+        return "unrelated words"
+
+    report = run_cross_model_eval(
+        samples,
+        auditors={"qwen": _self_blind_auditor, "gemini": _cross_auditor},
+        baseline_caption_for=caption_for,
+        generator_model="qwen",
+    )
+    # Baseline captioned each sample exactly once, not once per verifier.
+    assert len(calls) == len(samples)
+    assert len(report.baseline) == 2  # synthetic + real subsets
+
+
+def test_cross_model_eval_omits_baseline_when_not_provided() -> None:
+    report = run_cross_model_eval(
+        [_mutated()],
+        auditors={"qwen": _self_blind_auditor},
+        generator_model="qwen",
+    )
+    assert report.baseline == []
+
+
+def test_cross_model_report_json_round_trip() -> None:
+    report = run_cross_model_eval(
+        [_mutated(), _clean(), _real_pos("A phantom hovers.")],
+        auditors={"qwen": _self_blind_auditor, "gemini": _cross_auditor},
+        baseline_caption_for=lambda _s: "unrelated words",
+        generator_model="qwen",
+    )
+    loaded = CrossModelReport.model_validate_json(report.model_dump_json())
     assert loaded == report

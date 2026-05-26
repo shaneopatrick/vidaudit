@@ -203,6 +203,54 @@ def test_sample_frames_ffmpeg_failure_raises_runtime_error(
         sample_frames(video, [5.0])
 
 
+def test_sample_frames_skips_failing_context_frame_but_keeps_primary(
+    video: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A context frame that fails extraction is skipped; the primary survives."""
+    png = _png_bytes()
+
+    def fake_run(
+        cmd: list[str], *_args: object, **_kwargs: object
+    ) -> subprocess.CompletedProcess[object]:
+        if cmd[0] == "ffprobe":
+            return subprocess.CompletedProcess(cmd, 0, stdout="10.0\n", stderr="")
+        ss = float(cmd[cmd.index("-ss") + 1])
+        if ss > 9.0:  # the upper context frame near EOF fails
+            return subprocess.CompletedProcess(cmd, 1, stdout=b"", stderr=b"eof")
+        return subprocess.CompletedProcess(cmd, 0, stdout=png, stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    # t=8.5, window=1.0 -> [8.5, 7.5, 9.5]; the 9.5 context frame fails.
+    with caplog.at_level(logging.WARNING):
+        result = sample_frames(video, [8.5], context_window=1.0)
+
+    assert len(result[8.5]) == 2  # primary + one good context; failing one dropped
+    assert "Skipping context frame" in caplog.text
+
+
+def test_sample_frames_raises_when_primary_frame_fails(
+    video: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Primary-frame failure is fatal even though context frames are best-effort."""
+    png = _png_bytes()
+
+    def fake_run(
+        cmd: list[str], *_args: object, **_kwargs: object
+    ) -> subprocess.CompletedProcess[object]:
+        if cmd[0] == "ffprobe":
+            return subprocess.CompletedProcess(cmd, 0, stdout="10.0\n", stderr="")
+        ss = float(cmd[cmd.index("-ss") + 1])
+        if abs(ss - 5.0) < 1e-6:  # the primary frame fails
+            return subprocess.CompletedProcess(cmd, 1, stdout=b"", stderr=b"bad")
+        return subprocess.CompletedProcess(cmd, 0, stdout=png, stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    with pytest.raises(RuntimeError, match="ffmpeg failed"):
+        sample_frames(video, [5.0], context_window=1.0)
+
+
 def test_module_imports_clean() -> None:
     # Sanity check the module loaded without side effects.
     assert hasattr(frame_sampler, "sample_frames")
