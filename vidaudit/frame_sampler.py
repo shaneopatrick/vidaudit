@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 _DEFAULT_CACHE_DIR = Path(".vidaudit_cache")
 
+# Back off this many seconds from the exact video end when clamping a sample
+# timestamp. An accurate seek to EOF often yields no decodable frame; a small
+# margin avoids the failure at sub-frame cost.
+_END_SEEK_MARGIN = 0.1
+
 
 def _cache_dir() -> Path:
     """Resolve and ensure the frames cache directory.
@@ -167,18 +172,37 @@ def sample_frames(
             )
             continue
 
-        # Primary first so callers can rely on index 0 = frame at t.
+        # Primary first so callers can rely on index 0 = frame at t. Clamp
+        # into [0, duration - margin]: backing off the exact end avoids a
+        # near-EOF seek that returns no frame.
+        safe_end = max(0.0, duration - _END_SEEK_MARGIN)
         offsets = [t, t - context_window, t + context_window]
         seen: set[float] = set()
         clip_times: list[float] = []
         for o in offsets:
-            clipped = max(0.0, min(o, duration))
+            clipped = max(0.0, min(o, safe_end))
             key = round(clipped, 6)
             if key in seen:
                 continue
             seen.add(key)
             clip_times.append(clipped)
 
-        frames[t] = [_extract_one(video_path, ct) for ct in clip_times]
+        # The primary frame (index 0) is required; context frames are
+        # supplementary (DD-9 rescue) and best-effort — one that still fails
+        # to extract is skipped, not fatal, so a usable primary frame always
+        # yields a result.
+        extracted: list[Image.Image] = []
+        for idx, ct in enumerate(clip_times):
+            try:
+                extracted.append(_extract_one(video_path, ct))
+            except RuntimeError:
+                if idx == 0:
+                    raise
+                logger.warning(
+                    "Skipping context frame at %.3fs in %s (extraction failed).",
+                    ct,
+                    video_path,
+                )
+        frames[t] = extracted
 
     return frames
