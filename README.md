@@ -4,15 +4,15 @@
 
 vidaudit checks time-coded video descriptions against the frames they actually describe. Give it a video and a set of timestamped descriptions (JSON); it samples a frame at each timestamp, decomposes every description into individual verifiable **claims** (objects, named entities, attributes), and asks a vision-language model one binary question per claim: *"Is this visible in this frame?"* The output is a structured report with a grounding score per segment and a flag on every claim the model could not confirm.
 
-![vidaudit terminal report: ...](examples/cli.png)
+![vidaudit terminal report: one clean segment, one partial hallucination, and one fully hallucinated segment](examples/cli.png)
 
-> The run above clears the grounded claims, miscounts nothing it can see, and flags the three fabrications: the Berlin TV Tower labeled as the Eiffel Tower, a red jacket that is not there, and a coffee cup that is not there.
+> The run clears the first segment, flags a partial hallucination in the second (the train runs under a bridge, not into a tunnel), and catches all three fabrications in the third: the Berlin TV Tower labeled as the Eiffel Tower, a red jacket, and a coffee cup, none of them present.
 
 ## Why it exists
 
-Production video-indexing systems generate automated time-coded descriptions of footage. Those descriptions sometimes hallucinate: they name objects, people, or landmarks that are not on screen. Catching that today means trusting the model that wrote the description, or paying a person to re-watch the clip.
+Production video-indexing systems generate automated time-coded descriptions of footage. Those descriptions sometimes hallucinate. They name objects, people, or landmarks that are not on screen. Catching that today means trusting the model that wrote the description, or paying a person to re-watch the clip.
 
-Academic work in this space (VideoHallucer, ViBe, MESH) ships benchmarks and datasets, not a tool you can point at your own videos. vidaudit is that tool: a small, inspectable CLI you clone and run.
+Academic work in this space (VideoHallucer, ViBe, MESH) ships benchmarks and datasets, not a tool you can point at your own videos. vidaudit is that tool - a small, inspectable CLI you clone and run.
 
 ## How it works: claims, not text comparison
 
@@ -33,7 +33,7 @@ Claim extraction is deterministic (spaCy, not a second LLM), so the only stochas
 
 ## Results
 
-vidaudit is built to be measured, so the headline is a benchmark rather than a feature list. The eval runs every sample through two verifier models, open-weight **Qwen2.5-VL-3B** and **Gemini 2.5 Flash**, plus the text-comparison baseline. The numbers below come from a FineVideo pilot of 5 videos: 75 synthetic samples (41 planted hallucinations, 34 clean) and 30 hand-labeled real captions (6 hallucinated, 24 clean).
+vidaudit is built to be measured, so the headline is a benchmark rather than a feature list. The eval runs every sample through two verifier models, open-weight **Qwen2.5-VL-3B** and **Gemini 2.5 Flash**, plus the text-comparison baseline. The numbers below come from a FineVideo pilot of 5 videos, 75 synthetic samples (41 planted hallucinations, 34 clean) and 30 hand-labeled real captions (6 hallucinated, 24 clean).
 
 **Which model is the better auditor (synthetic subset):**
 
@@ -57,7 +57,7 @@ Asked to verify claims pulled from its own captions, the model confirms all of t
 
 Two more findings come out of the confidence sweep:
 
-- **Calibration differs sharply.** Qwen's confidence is discriminative: F1 peaks across thresholds 0.2 to 0.4, and the shipped default of 0.3 sits on that plateau. Gemini reports high confidence on nearly every verdict, so its confidence cannot be used to gate decisions.
+- **Calibration differs sharply.** Qwen's confidence is discriminative. F1 peaks across thresholds 0.2 to 0.4, and the shipped default of 0.3 sits on that plateau. Gemini reports high confidence on nearly every verdict, so its confidence cannot be used to gate decisions.
 - **Extraction is not the bottleneck.** 95% of planted spans are extracted as claims, so the recall ceiling is verification quality, not spaCy.
 
 This is a pilot with 6 real positives, so the real-subset numbers are directional, not significant. Reproduce or extend it with [`notebooks/eval_demo.ipynb`](notebooks/eval_demo.ipynb).
@@ -93,7 +93,7 @@ cp .env.example .env         # then add your GEMINI_API_KEY
 ## Usage
 
 ```bash
-# Full audit: writes a JSON report and prints the terminal summary shown above
+# Full audit - writes a JSON report and prints the terminal summary shown above
 vidaudit audit \
   --video examples/clip.mp4 \
   --descriptions examples/descs.json \
@@ -124,16 +124,16 @@ Key flags: `--backend {gemini,qwen}`, `--confidence-threshold`, `--clean-thresho
 | **Qwen2.5-VL** | `Qwen/Qwen2.5-VL-3B-Instruct` (open-weight) | Canonical; reported metrics run here |
 | **Gemini** | `gemini-2.5-flash` | Dev convenience and no-GPU fallback |
 
-The canonical backend is the open-weight model for two reasons. It is reproducible: a checkpoint is frozen by hash, where a hosted model ID can change behavior underneath you. And running the eval on it turns the cross-model comparison itself into a result. Gemini stays for fast local iteration on machines without a GPU.
+The canonical backend is the open-weight model for two reasons. (1) It is reproducible, a checkpoint is frozen by hash, where a hosted model ID can change behavior underneath you. And (2) running the eval on it turns the cross-model comparison itself into a result. Gemini stays for fast local iteration on machines without a GPU.
 
-The Qwen backend is GPU-bound, so run it in Colab. See [`notebooks/qwen_smoke.ipynb`](notebooks/qwen_smoke.ipynb) for a one-clip smoke test and [`notebooks/eval_demo.ipynb`](notebooks/eval_demo.ipynb) for the full benchmark.
+The Qwen backend is GPU-bound, so run it in Colab. See [`notebooks/eval_demo.ipynb`](notebooks/eval_demo.ipynb) for the full benchmark.
 
 ## Project layout
 
 ```
 vidaudit/   the package: parser, sampler, auditor, backends, report, CLI
 eval/       FineVideo loader, synthetic mutations, captioners, eval runner
-notebooks/  Colab: qwen_smoke (one clip), eval_demo (cross-model benchmark)
+notebooks/  Colab eval_demo (cross-model benchmark)
 tests/      pytest, with the VLM and ffmpeg always mocked
 ```
 
@@ -146,11 +146,31 @@ make lint
 make typecheck
 ```
 
-Tests never hit a real VLM API or require a real video: subprocess and SDK calls are mocked, and a fake backend drives the auditor.
+Tests never hit a real VLM API or require a real video, subprocess and SDK calls are mocked, and a fake backend drives the auditor.
 
-## Limitations
+## Limitations and scope
 
-vidaudit verifies static, single-frame claims (objects, entities, attributes). Action and temporal claims, such as "the tram *passes* another" or event ordering, need multi-frame reasoning and are out of scope for now. A planned next step is a separate action-verifier path over densely sampled frames. See [BACKLOG.md](BACKLOG.md) for the worked example and roadmap.
+vidaudit is a focused tool with deliberate boundaries. The honest ones:
+
+**What it verifies.** Static, single-frame visual facts such as objects, named entities, and attributes present in a sampled frame. It does **not** verify:
+
+- **Actions and temporal relations** (for example "passes", "walks toward", or event ordering). An action exists across time, not in any single frame. See [BACKLOG.md](BACKLOG.md) for the worked example and the planned action-verifier path.
+- **Counts and fine spatial relations** ("two trams", "to the left of") beyond what one frame and a binary question can reliably support.
+- **Non-visual assertions** such as names, spoken words, on-screen text, or intent. spaCy will extract a person's name as an entity claim, but no VLM can confirm an identity from a frame; read entity verdicts with that in mind.
+
+**The verifier is the ceiling.** vidaudit is only as accurate as the model doing the checking. A weak or biased verifier yields weak audits, the 3B model misses roughly a third of the plausible mutations in the pilot. And a model checking its own output is unreliable (the self-consistency result above). Use an independent verifier when auditing a generation model.
+
+**Extraction bounds precision.** Claim quality is capped by spaCy noun-phrase and NER extraction. It still emits some generic or non-visual phrases despite filtering, and it misses a small fraction of spans. The eval reports extraction recall on its own so this failure mode stays visible rather than blended into the headline F1.
+
+**Sampling is sparse.** One primary frame at the segment midpoint plus a few context frames. A claim that is true only at an unsampled instant can be missed or wrongly flagged; denser sampling trades cost for coverage.
+
+**English only.** Extraction uses `en_core_web_sm`; other languages degrade quietly.
+
+**Confidence is self-reported, not calibrated.** The per-claim confidence is the model's confidence in its own verdict, not a probability that the claim is true, and calibration varies by backend (Gemini is notably overconfident here). Tune thresholds per backend.
+
+**The eval is a pilot.** 5 videos, 75 synthetic and 30 real samples with only 6 real positives, so the numbers are directional rather than statistically significant. The synthetic set skews toward entity injection because the curated swap tables under-match FineVideo's vocabulary, and FineVideo's descriptions are scene narration rather than pure frame captions. The methodology generalizes; the specific numbers should be re-run at scale before being cited as performance figures.
+
+**Scope.** vidaudit checks whether a description is grounded in the frames it covers. It is not a content-safety, moderation, or general fact-checking tool.
 
 ## License
 
