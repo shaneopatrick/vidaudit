@@ -2,7 +2,7 @@
   "metadata": {
     "video": "examples/clip.mp4",
     "backend": "gemini-2.5-flash",
-    "generated_at": "2026-05-27T13:39:25.051492Z",
+    "generated_at": "2026-05-27T17:21:13.102474Z",
     "confidence_threshold": 0.3,
     "clean_threshold": 0.8,
     "partial_threshold": 0.4,
@@ -10,12 +10,12 @@
   },
   "summary": {
     "total_descriptions": 3,
-    "total_claims": 10,
+    "total_claims": 11,
     "verified_claims": 7,
-    "hallucinated_claims": 3,
+    "hallucinated_claims": 4,
     "uncertain_claims": 0,
-    "overall_grounding_score": 0.7,
-    "descriptions_flagged": 1
+    "overall_grounding_score": 0.6363636363636364,
+    "descriptions_flagged": 2
   },
   "segments": [
     {
@@ -75,16 +75,16 @@
       "timestamp_start": 4.0,
       "timestamp_end": 9.0,
       "end_inferred": false,
-      "description": "A yellow train passes in the background as pedestrians cross the street",
-      "grounding_score": 1.0,
-      "hallucination_count": 0,
-      "verdict": "clean",
+      "description": "A yellow train passes into a tunnel as people cross the street",
+      "grounding_score": 0.75,
+      "hallucination_count": 1,
+      "verdict": "partial_hallucination",
       "claims": [
         {
           "claim": {
             "text": "yellow train",
             "claim_type": "object",
-            "source_description": "A yellow train passes in the background as pedestrians cross the street"
+            "source_description": "A yellow train passes into a tunnel as people cross the street"
           },
           "verification": {
             "claim": "yellow train",
@@ -96,15 +96,29 @@
         },
         {
           "claim": {
-            "text": "pedestrians",
+            "text": "tunnel",
             "claim_type": "object",
-            "source_description": "A yellow train passes in the background as pedestrians cross the street"
+            "source_description": "A yellow train passes into a tunnel as people cross the street"
           },
           "verification": {
-            "claim": "pedestrians",
+            "claim": "tunnel",
+            "verdict": "unsupported",
+            "confidence": 1.0,
+            "evidence": "The image displays an elevated train track and a street at ground level, with no visible underground passage or tunnel."
+          },
+          "flagged": true
+        },
+        {
+          "claim": {
+            "text": "people",
+            "claim_type": "object",
+            "source_description": "A yellow train passes into a tunnel as people cross the street"
+          },
+          "verification": {
+            "claim": "people",
             "verdict": "supported",
             "confidence": 1.0,
-            "evidence": "Multiple people are visible walking on the sidewalk and street."
+            "evidence": "Multiple individuals are visible walking on the sidewalk and crossing the street in the frame."
           },
           "flagged": false
         },
@@ -112,7 +126,7 @@
           "claim": {
             "text": "street",
             "claim_type": "object",
-            "source_description": "A yellow train passes in the background as pedestrians cross the street"
+            "source_description": "A yellow train passes into a tunnel as people cross the street"
           },
           "verification": {
             "claim": "street",
