@@ -8,8 +8,6 @@ Canonical guide for Claude Code (and other coding assistants) working in this re
 
 **vidaudit** is a Python CLI tool that audits VLM-generated video descriptions for hallucinations. Given a video file and time-coded text descriptions (JSON), it samples frames at each timestamp, decomposes descriptions into verifiable claims (noun phrases, named entities), uses a VLM to check each claim against the actual frame, and produces a structured audit report with grounding scores.
 
-The full project plan, component specs, and build order live in `PLAN.md` — read it before starting any implementation work.
-
 ### Core design insight
 
 Descriptions are decomposed into individual verifiable claims and each claim is verified independently via binary VLM questions ("Is [X] visible in this frame?") — NOT free-text comparison of two generated descriptions.
@@ -20,9 +18,7 @@ Descriptions are decomposed into individual verifiable claims and each claim is 
 
 | File | What's in it |
 |---|---|
-| `PLAN.md` | Full project plan — component specs, interfaces, build order, cut list |
-| `README.md` | Quick start, installation, usage examples |
-| `BACKLOG.md` | Planned work and deferred improvements |
+| `README.md` | Quick start, installation, usage examples, eval results |
 
 ---
 
@@ -45,8 +41,9 @@ vidaudit/
 │       ├── gemini.py           # Gemini 2.5 Flash backend (default)
 │       └── qwen_vl.py          # Qwen2.5-VL local backend (optional, GPU)
 ├── eval/
-│   ├── finevideo_loader.py     # FineVideo dataset loader + synthetic mutations
-│   └── run_eval.py             # Evaluation runner — precision, recall, F1
+│   ├── finevideo_loader.py     # FineVideo loader + synthetic mutations
+│   ├── captioner.py            # Weak captioners for the real-hallucination subset
+│   └── run_eval.py             # Evaluation runner — precision, recall, F1, cross-model
 ├── tests/
 │   ├── conftest.py             # Shared fixtures
 │   ├── fixtures/               # Sample frames, descriptions, expected outputs
@@ -54,10 +51,11 @@ vidaudit/
 │   ├── test_frame_sampler.py
 │   └── test_object_audit.py
 ├── notebooks/
-│   └── eval_demo.ipynb         # Colab notebook for FineVideo evaluation
+│   ├── qwen_smoke.ipynb        # Colab one-clip smoke test (Qwen backend)
+│   └── eval_demo.ipynb         # Colab cross-model FineVideo evaluation
 ├── examples/
-│   └── sample_descriptions.json
-├── PLAN.md
+│   ├── clip.mp4
+│   └── descs.json
 ├── CLAUDE.md
 ├── README.md
 ├── pyproject.toml              # Project metadata, deps, tool config (single source of truth)
@@ -77,7 +75,7 @@ vidaudit/
 | Data models | Pydantic v2 | `BaseModel` everywhere — never `dataclasses` for structured data |
 | Terminal output | Rich | Tables, progress bars, color-coded verdicts |
 | NLP | spaCy (`en_core_web_sm`) | Noun phrase extraction and NER for claim decomposition |
-| Primary VLM | Qwen2.5-VL-3B (open-weight) | Via `transformers`. Canonical eval backend (DD-16). Developed/run via Colab |
+| Primary VLM | Qwen2.5-VL-3B (open-weight) | Via `transformers`. Canonical eval backend. Developed/run via Colab |
 | Fallback VLM | Gemini 2.5 Flash | Via `google-genai` SDK. Dev convenience + no-GPU path |
 | Frame extraction | ffmpeg (subprocess) | NOT opencv, NOT decord — keep deps minimal |
 | Image handling | Pillow | PIL Images throughout the pipeline |
@@ -208,7 +206,7 @@ make check          # lint + typecheck + tests — must pass
 These are intentional choices — don't "fix" them:
 
 1. **Claims-based verification, not text comparison.** Descriptions are decomposed into noun phrases/entities and each is verified independently with a binary VLM question.
-2. **VLM backends are pluggable** via abstract base class (`VLMBackend`). Canonical eval backend is open-weight Qwen2.5-VL-3B (DD-16); Gemini 2.5 Flash is retained for development and no-GPU users.
+2. **VLM backends are pluggable** via abstract base class (`VLMBackend`). Canonical eval backend is open-weight Qwen2.5-VL-3B; Gemini 2.5 Flash is retained for development and no-GPU users.
 3. **Frame extraction uses ffmpeg subprocess calls** — not opencv, not decord. Keeps the dependency footprint small and avoids C extension build issues.
 4. **Context frames cover the segment span, not a point.** A description covers a time range, so the primary frame is sampled at the segment midpoint and context frames are spread across `[timestamp_start, timestamp_end]` — a claim true only briefly within the span isn't falsely flagged, and this also absorbs motion blur / brief occlusion. When `timestamp_end` is absent the effective end is inferred (next segment's start → video duration for the final segment → capped at `max_segment_span`); if the span collapses to a point, fall back to `t ± context_window`. Inferred ends are recorded in report metadata, never silently fabricated.
 5. **All structured data uses Pydantic models** so results serialize cleanly to JSON and validate at boundaries.
@@ -240,8 +238,6 @@ Input: video.mp4 + descriptions.json
 
 ## 11. How to work effectively in this repo
 
-- **Read `PLAN.md` first.** It has component specs, interfaces, edge cases, and build order.
-- **Follow the build order** in PLAN.md §Build Order. Each step depends on prior steps.
 - **Match existing patterns.** If you see a convention in existing code, follow it.
 - **Prefer editing to creating.** Extend existing modules unless the new code is genuinely orthogonal.
 - **Don't pad with ceremony.** No trailing summaries, no `# removed` comments, no backwards-compat shims.

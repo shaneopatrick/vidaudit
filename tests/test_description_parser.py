@@ -1,7 +1,7 @@
 """Tests for vidaudit.description_parser.
 
 spaCy runs for real here — it is deterministic, local, and fast, so there is
-nothing to mock (CLAUDE.md §6 only forbids real VLM/ffmpeg calls).
+nothing to mock (only real VLM/ffmpeg calls are forbidden in tests).
 """
 
 from __future__ import annotations
@@ -96,7 +96,7 @@ def test_parse_descriptions_populates_and_preserves_none(tmp_path: Path) -> None
 
     assert [type(s) for s in segments] == [DescriptionSegment, DescriptionSegment]
     assert segments[0].timestamp_end == 18.0
-    assert segments[1].timestamp_end is None  # never fabricated (DD-9)
+    assert segments[1].timestamp_end is None  # never fabricated
     assert "coffee cup" in _by_type(segments[0].claims, "object")
     assert len(segments[1].claims) > 0
 

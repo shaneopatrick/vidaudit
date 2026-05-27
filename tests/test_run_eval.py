@@ -267,7 +267,7 @@ def test_run_eval_splits_synthetic_and_real_metrics() -> None:
 
 
 def test_run_eval_baseline_is_noisier_on_clean_controls_than_vidaudit() -> None:
-    """Headline DD-13 result: the text baseline false-positives where vidaudit doesn't."""
+    """Headline result: the text baseline false-positives where vidaudit doesn't."""
     samples = [_clean(description="A dog runs in a green park.")]
 
     def auditor(sample: EvalSample, _ct: float) -> SegmentAuditResult:

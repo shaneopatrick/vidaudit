@@ -1,10 +1,10 @@
 """Aggregate audit results into a structured report (JSON + Rich terminal).
 
 The report is the project's deliverable shape — it carries enough metadata
-(model id, thresholds, version, per-segment ``end_inferred`` flags per DD-9)
-to be reproducible and self-explanatory. ``end_inferred`` records whether the
-orchestration filled in a missing ``timestamp_end`` (DD-9 requirement: never
-silently fabricated; surface it in the report).
+(model id, thresholds, version, per-segment ``end_inferred`` flags) to be
+reproducible and self-explanatory. ``end_inferred`` records whether the
+orchestration filled in a missing ``timestamp_end`` — an inferred end is never
+silently fabricated, it is surfaced in the report.
 """
 
 from __future__ import annotations
@@ -43,10 +43,10 @@ _CLAIM_STYLE = {
 
 
 class ReportMetadata(BaseModel):
-    """Metadata sufficient to reproduce the audit run (DD-14)."""
+    """Metadata sufficient to reproduce the audit run."""
 
     video: str
-    backend: str  # ``VLMBackend.model_id`` (pinned per DD-3 / DD-16)
+    backend: str  # ``VLMBackend.model_id`` (a pinned, reproducible identifier)
     generated_at: datetime
     confidence_threshold: float
     clean_threshold: float
@@ -61,7 +61,7 @@ class ReportSummary(BaseModel):
     total_claims: int
     verified_claims: int  # verification.verdict == "supported"
     hallucinated_claims: int  # ClaimResult.flagged is True
-    uncertain_claims: int  # neither supported nor flagged (incl. DD-7 low-conf)
+    uncertain_claims: int  # neither supported nor flagged (incl. low-confidence)
     overall_grounding_score: float  # verified / total
     descriptions_flagged: int  # segments with verdict != "clean"
 
@@ -71,7 +71,7 @@ class ReportSegment(BaseModel):
 
     timestamp_start: float
     timestamp_end: float | None
-    end_inferred: bool = False  # DD-9: True iff orchestration filled the end
+    end_inferred: bool = False  # True iff orchestration filled a missing end
     description: str
     grounding_score: float
     hallucination_count: int
@@ -122,13 +122,13 @@ def build_report(
     Args:
         audited_segments: ``(audit, end_inferred)`` for each audited segment.
             ``end_inferred`` is ``True`` iff the orchestration filled a
-            missing ``timestamp_end`` (DD-9) — surfaced in the report so the
+            missing ``timestamp_end`` — surfaced in the report so the
             inference is never silent.
         video_path: Path to the source video (recorded in metadata).
         backend_id: ``VLMBackend.model_id``, e.g. ``gemini-2.5-flash``.
-        confidence_threshold: Threshold the audit ran with (DD-7).
-        clean_threshold: Grounding-score cutoff used (DD-12).
-        partial_threshold: Grounding-score cutoff used (DD-12).
+        confidence_threshold: Verdict-confidence threshold the audit ran with.
+        clean_threshold: Grounding-score cutoff used for the verdict.
+        partial_threshold: Grounding-score cutoff used for the verdict.
 
     Returns:
         The complete :class:`AuditReport`.
@@ -170,7 +170,7 @@ def build_report(
 
 
 def render_terminal(report: AuditReport, console: Console | None = None) -> None:
-    """Pretty-print the report to a Rich console (PLAN.md component 7)."""
+    """Pretty-print the report to a Rich console."""
     if console is None:
         console = Console()
 

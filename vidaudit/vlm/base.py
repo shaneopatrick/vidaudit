@@ -1,11 +1,11 @@
 """VLM backend interface and the verification-result model.
 
 A backend takes a frame + a claim and decides whether the claim is visually
-supported. Backends are pluggable behind :class:`VLMBackend` (DESIGN.md DD-3)
-so the eval can compare implementations head-to-head (DD-13, DD-16).
+supported. Backends are pluggable behind :class:`VLMBackend` so the eval can
+compare implementations head-to-head.
 
 The default ``verify_batch`` loops over ``verify_claim``; backends with a true
-batched API (e.g. Gemini) override it for the quota win (DD-6).
+batched API (e.g. Gemini) override it to spend fewer calls.
 """
 
 from __future__ import annotations
@@ -24,9 +24,8 @@ Verdict = Literal["supported", "unsupported", "uncertain"]
 class VerificationResult(BaseModel):
     """One verifier's verdict on one claim against one frame.
 
-    ``confidence`` follows DD-7: it is the VLM's confidence in the verdict it
-    just gave (1.0 = certain, 0.0 = pure guess), NOT the probability the claim
-    is true.
+    ``confidence`` is the VLM's confidence in the verdict it just gave
+    (1.0 = certain, 0.0 = pure guess), NOT the probability the claim is true.
     """
 
     claim: str
@@ -36,12 +35,12 @@ class VerificationResult(BaseModel):
 
 
 class VLMBackend(ABC):
-    """Pluggable VLM backend interface (DD-3).
+    """Pluggable VLM backend interface.
 
     Concrete backends MUST set ``model_id`` to a stable, pinned identifier
     (e.g. ``gemini-2.5-flash``, ``Qwen/Qwen2.5-VL-3B-Instruct@<sha>``). The
-    identifier ends up in the verification cache key (DD-11) and the report
-    metadata, so reproducibility depends on it being precise.
+    identifier ends up in the verification cache key and the report metadata,
+    so reproducibility depends on it being precise.
     """
 
     model_id: str

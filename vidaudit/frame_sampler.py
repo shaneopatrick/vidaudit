@@ -2,9 +2,8 @@
 
 Frame fidelity is the whole game for an auditor — sampling the wrong frame
 manufactures false hallucinations — so seeking is frame-accurate (``-ss`` after
-``-i``, DESIGN.md DD-8) and decoded frames are cached by
-(video identity, timestamp) under ``VIDAUDIT_CACHE_DIR`` so reruns are
-deterministic and don't re-decode (DD-14).
+``-i``) and decoded frames are cached by (video identity, timestamp) under
+``VIDAUDIT_CACHE_DIR`` so reruns are deterministic and don't re-decode.
 """
 
 from __future__ import annotations
@@ -31,8 +30,8 @@ _END_SEEK_MARGIN = 0.1
 def _cache_dir() -> Path:
     """Resolve and ensure the frames cache directory.
 
-    Honors ``VIDAUDIT_CACHE_DIR`` if set (CLAUDE.md §7), defaulting to
-    ``.vidaudit_cache/`` next to the working directory.
+    Honors ``VIDAUDIT_CACHE_DIR`` if set, defaulting to ``.vidaudit_cache/``
+    next to the working directory.
     """
     env = os.environ.get("VIDAUDIT_CACHE_DIR")
     base = Path(env) if env else _DEFAULT_CACHE_DIR
@@ -89,8 +88,8 @@ def get_video_duration(video_path: Path) -> float:
 def _extract_one(video_path: Path, t: float) -> Image.Image:
     """Extract a single frame at exactly ``t`` seconds, with caching.
 
-    ``-ss`` is placed AFTER ``-i`` for frame-accurate seeking (DD-8); the
-    fast-seek form would snap to the nearest keyframe.
+    ``-ss`` is placed AFTER ``-i`` for frame-accurate seeking; the fast-seek
+    form would snap to the nearest keyframe.
     """
     cache_path = _cache_dir() / f"{_cache_key(video_path, t)}.png"
     if cache_path.exists():
@@ -188,7 +187,7 @@ def sample_frames(
             clip_times.append(clipped)
 
         # The primary frame (index 0) is required; context frames are
-        # supplementary (DD-9 rescue) and best-effort — one that still fails
+        # supplementary (the context-frame rescue) and best-effort — one that still fails
         # to extract is skipped, not fatal, so a usable primary frame always
         # yields a result.
         extracted: list[Image.Image] = []

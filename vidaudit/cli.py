@@ -334,8 +334,8 @@ def _build_backend(
             return GeminiBackend(model=model, min_interval_seconds=min_interval)
         return GeminiBackend(min_interval_seconds=min_interval)
     if backend is Backend.qwen:
-        # ``model`` defaults to None — fall through to env override (DD-16
-        # optional 7B path) then the qwen_vl default.
+        # ``model`` defaults to None — fall through to the VIDAUDIT_QWEN_MODEL
+        # env override (e.g. a 7B variant) then the qwen_vl default.
         return QwenVLBackend(
             model=model or model_from_env(),
             revision=qwen_revision,

@@ -1,13 +1,13 @@
-"""Qwen2.5-VL-3B-Instruct backend — the canonical eval backend (DESIGN.md DD-16).
+"""Qwen2.5-VL-3B-Instruct backend — the canonical eval backend.
 
 Open-weight verifier via ``transformers``. Reproducibility-anchored: a pinned
-model revision (commit SHA) means the cache key (DD-11) and reported metrics
-are stable forever — no risk of silent provider-side behavior change.
+model revision (commit SHA) means the cache key and reported metrics are stable
+forever — no risk of silent provider-side behavior change.
 
 Unlike Gemini there is no native ``response_schema`` plumbing, so JSON shape
 is requested in the prompt and parsed/validated against the same Pydantic
 models on the way out. A best-effort regex fallback handles the case where
-the model wraps JSON in markdown fences (DD-10 last-resort path).
+the model wraps JSON in markdown fences.
 
 Heavy deps (``transformers``, ``torch``, ``accelerate``) live behind the
 ``[qwen]`` extra and are imported lazily inside :class:`_HFRunner` — importing
@@ -34,9 +34,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 DEFAULT_MODEL = "Qwen/Qwen2.5-VL-3B-Instruct"
-# DD-14 / DD-16: pin the revision when you ship eval numbers. Left as None
-# in the default so dev work doesn't fail closed; the Colab eval driver and
-# CLI both surface ``--qwen-revision`` so reported metrics can be anchored
+# Pin the revision when you ship eval numbers, for reproducibility. Left as
+# None in the default so dev work doesn't fail closed; the Colab eval driver
+# and CLI both surface ``--qwen-revision`` so reported metrics can be anchored
 # to an exact commit SHA.
 DEFAULT_REVISION: str | None = None
 DEFAULT_MAX_NEW_TOKENS = 256
@@ -111,10 +111,10 @@ class QwenVLBackend(VLMBackend):
 
     Args:
         model: HF model id. Defaults to ``Qwen/Qwen2.5-VL-3B-Instruct``.
-        revision: Pinned commit SHA — strongly recommended for eval runs
-            (DD-14). When set, the cache key (DD-11) and the report's
-            ``model_id`` both include it, so reruns at a later SHA don't
-            silently reuse stale verdicts.
+        revision: Pinned commit SHA — strongly recommended for reproducible
+            eval runs. When set, the cache key and the report's ``model_id``
+            both include it, so reruns at a later SHA don't silently reuse
+            stale verdicts.
         device: ``"cuda"``, ``"cpu"``, ``"auto"``, or ``None`` (auto). Passed
             as ``device_map`` to ``from_pretrained``.
         load_in_4bit: Enable bitsandbytes 4-bit quantization (requires
@@ -239,7 +239,7 @@ def _extract_json_payload(text: str) -> Any:
 
     Tries in order: parse as-is, strip a single ```json fence, locate the
     outermost ``{...}`` or ``[...]`` block. Returns ``None`` if nothing
-    parses — caller treats that as ``uncertain`` (DD-10 last-resort).
+    parses — caller treats that as ``uncertain`` (last-resort fallback).
     """
     if not text:
         return None
@@ -287,7 +287,7 @@ class _HFRunner:
     """Real ``(image, prompt) -> text`` runner backed by ``transformers``.
 
     Loads the model + processor at construction. Greedy decoding
-    (``do_sample=False``) for determinism (DD-14). Lazy-imports torch and
+    (``do_sample=False``) for determinism. Lazy-imports torch and
     transformers so importing :mod:`vidaudit.vlm.qwen_vl` itself doesn't
     require the ``[qwen]`` extra — only instantiating a real backend does.
     """
@@ -375,7 +375,7 @@ class _HFRunner:
 
 
 # Honoured by callers (CLI, eval driver) that want to override the model id
-# via env without surfacing a separate flag — see DD-16 (optional 7B for
-# scaling comparison).
+# via env without surfacing a separate flag — e.g. swapping in a 7B variant
+# for a scaling comparison.
 def model_from_env(default: str = DEFAULT_MODEL) -> str:
     return os.environ.get("VIDAUDIT_QWEN_MODEL", default)

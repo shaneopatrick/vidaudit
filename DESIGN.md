@@ -1,14 +1,10 @@
-# DESIGN.md — Design Decision Log
+# Design decisions
 
 A running, append-only log of design decisions for **vidaudit**. Each entry is a
 lightweight ADR: what was decided, why, what was rejected, and what it costs.
 
-- **Append-only.** New decisions get the next `DD-N`. Don't rewrite history — if a
-  decision changes, add a new entry and mark the old one *Superseded by DD-N*.
-- **Relationship to other docs:** `CLAUDE.md` §9 is the terse "don't fix these"
-  mirror of the *Accepted* decisions here. `PLAN.md` holds the implementation
-  specs. This file holds the *reasoning*. When they disagree, this file is the
-  source of truth for *why*; PLAN.md for *how*.
+New decisions get the next `DD-N`. History isn't rewritten — if a decision
+changes, a new entry is added and the old one marked *Superseded by DD-N*.
 
 Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 
@@ -26,7 +22,7 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 - **Rejected:** Generate a second caption and diff/embed-compare it. Kept only as
   the *baseline* the eval measures against (see DD-13).
 - **Consequences:** Audit quality is upper-bounded by claim-extraction quality
-  (drives DD-2, and the stopword filter in PLAN.md §2).
+  (drives DD-2 and the stopword filter in the parser).
 
 ## DD-2: spaCy for claim extraction, not an LLM
 
@@ -46,9 +42,7 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
   2.5 Flash** (free tier) via `google-genai`. Qwen2.5-VL is an optional local
   backend, opt-in.
 - **Why:** A pluggable interface lets the eval swap models without touching the
-  pipeline. Gemini free tier removes the cost barrier for a portfolio project.
-- **Note:** "Gemini 2.5" is the single agreed model string across all docs —
-  earlier drafts inconsistently said 2.0 / 3.1; that is resolved.
+  pipeline. The Gemini free tier removes the cost barrier to getting started.
 
 ## DD-4: Frame extraction via ffmpeg subprocess (not opencv/decord)
 
@@ -71,7 +65,7 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 - **Date:** 2026-05-16 · **Status:** Accepted
 - **Decision:** Multiple claims against the same frame are sent in one VLM
   prompt asking for a JSON array, not one call per claim.
-- **Why:** The Gemini free tier is rate-limited; the eval makes many calls.
+- **Why:** The Gemini free tier is rate-limited and the eval makes many calls.
   Batching is the difference between a feasible and an infeasible eval run.
 
 ## DD-7: `confidence` is the VLM's confidence in its verdict
@@ -80,9 +74,9 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
 - **Decision:** `VerificationResult.confidence` ∈ [0,1] is the VLM's confidence
   *in the verdict it gave* (1 = certain, 0 = guess) — **not** P(claim is true).
   The prompt states this explicitly.
-- **Why:** Earlier the field was undefined, and `object_audit` branches on it
-  (low-confidence "unsupported" → treated as *uncertain*, not flagged).
-  Undefined semantics here silently corrupt grounding scores.
+- **Why:** The auditor branches on it (a low-confidence "unsupported" is treated
+  as *uncertain*, not flagged). Undefined semantics here silently corrupt
+  grounding scores.
 
 ## DD-8: Frame-accurate seeking (`-ss` after `-i`)
 
@@ -123,28 +117,28 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
   `Field(description=...)` so the schema description shipped to the model and
   the data class share one source of truth. Regex extraction is a last-resort
   fallback only, not the primary path.
-- **Why:** Prompt-and-pray + regex is fragile and a poor engineering signal
-  for a portfolio piece. Native structured output is more robust and
-  reproducible. Pydantic schemas additionally give validated, typed Python
-  objects back from the SDK (`response.parsed`), removing one layer of manual
+- **Why:** Prompt-and-pray + regex is fragile. Native structured output is more
+  robust and reproducible, and Pydantic schemas give validated, typed Python
+  objects back from the SDK (`response.parsed`) — removing a layer of manual
   parsing and keeping the model contract co-located with the data class.
 
 ## DD-11: Cache VLM verifications, not just frames
 
 - **Date:** 2026-05-16 · **Status:** Accepted
 - **Decision:** Cache verification results keyed by (frame content hash, claim
-  text), in addition to caching extracted frames.
+  text, model id), in addition to caching extracted frames.
 - **Why:** The eval is iterated repeatedly under a rate-limited free tier.
-  Without a verification cache, every rerun re-spends the entire API budget.
+  Without a verification cache, every rerun re-spends the entire API budget —
+  and the threshold sweep would be infeasible.
 
 ## DD-12: Verdict thresholds are eval-derived defaults, not asserted
 
-- **Date:** 2026-05-16 · **Status:** Accepted
+- **Date:** 2026-05-16 · **Status:** Accepted *(closed by DD-17)*
 - **Decision:** The grounding-score cutoffs (clean / partial / full) and the
   confidence threshold are CLI-tunable *defaults*. The shipped values are chosen
-  from an ROC threshold sweep on eval data, not hardcoded by intuition.
-- **Why:** For a benchmarking artifact, deriving thresholds from data is the
-  rigor the target audience scrutinizes; magic constants undercut credibility.
+  from a threshold sweep on eval data, not hardcoded by intuition.
+- **Why:** Deriving thresholds from data is the rigor a benchmark needs; magic
+  constants undercut credibility.
 
 ## DD-13: Eval = baseline comparison + real & synthetic hallucinations + split metrics
 
@@ -155,58 +149,84 @@ Status values: `Accepted` · `Superseded by DD-N` · `Proposed`.
   set of real (naturally-generated) hallucinations, reported as separate
   subsets; (c) separates extraction quality from verification quality so a low
   F1 is attributable.
-- **Why:** "We catch X% of random swaps" is not credible to a benchmarking
-  reviewer. Beating the naive baseline on *realistic* errors is the headline
-  result; conflated metrics hide where failures come from.
+- **Why:** "We catch X% of random swaps" is not credible. Beating the naive
+  baseline on *realistic* errors is the headline result; conflated metrics hide
+  where failures come from.
 
 ## DD-14: Reproducibility is a hard requirement
 
 - **Date:** 2026-05-16 · **Status:** Accepted
 - **Decision:** Commit `uv.lock` (it is *not* gitignored). Pin an exact VLM
-  model ID. Set VLM `temperature=0`. Frame sampling and end-resolution (DD-9)
-  are deterministic.
-- **Why:** The eval is the deliverable; a deliverable a reviewer can't
-  reproduce is worthless. Non-deterministic VLM output or an unpinned
-  environment makes reported metrics unfalsifiable.
+  model ID/revision. Set VLM `temperature=0` / greedy decoding. Frame sampling
+  and end-resolution (DD-9) are deterministic.
+- **Why:** The eval is the deliverable; results nobody can reproduce are
+  worthless. Non-deterministic VLM output or an unpinned environment makes
+  reported metrics unfalsifiable.
 
-## DD-15: The eval is the primary deliverable (P0)
+## DD-15: The eval is the core contribution
 
 - **Date:** 2026-05-16 · **Status:** Accepted
-- **Decision:** Treat the FineVideo eval (with DD-13 baseline + DD-12 sweep) as
-  P0 — not cuttable. Cut tooling polish, the Colab notebook, and the Qwen
-  backend before touching it.
-- **Why:** This is a portfolio piece for a benchmarking-focused role. A rough
-  tool with a rigorous, baseline-compared eval beats a polished tool with a
-  hand-wavy one. The cut list in PLAN.md reflects this ordering.
+- **Decision:** Treat the FineVideo eval (with the DD-13 baseline + DD-12 sweep)
+  as the project's core contribution — built and protected before tooling
+  polish.
+- **Why:** A rough tool with a rigorous, baseline-compared eval is more valuable
+  than a polished tool with a hand-wavy one. The auditor exists to be measured;
+  the measurement is the point.
 
 ## DD-16: Canonical backend is open-weight Qwen2.5-VL-3B; Gemini is dev/fallback
 
 - **Date:** 2026-05-19 · **Status:** Accepted *(refines DD-3)*
-- **Decision:** Reported eval metrics (DD-15) run on **Qwen2.5-VL-3B-Instruct**
-  via `transformers`. Gemini 2.5 Flash is retained as a development backend
-  and a no-GPU fallback for users who can't run a local VLM. The Qwen backend
-  is no longer a stub — it ships as a real implementation.
-- **Why:** The target role hires for "ability to identify the best
-  open-weights model for a given task" and explicit VLM expertise; defaulting
-  to a closed model contradicts the stated hiring criterion. Open weights are
-  also more reproducible (DD-14) — a Qwen checkpoint is frozen by hash forever,
-  whereas a Gemini model ID can be deprecated or shift behavior. The
-  cross-backend comparison itself becomes the headline eval result (DD-13).
-- **Why 3B and not 7B/72B:** 3B fits Colab's free T4 in fp16 (~7 GB) and
-  consumer GPUs in 4-bit (~4 GB), so a reviewer can actually reproduce the
-  numbers. 7B is run as a scaling-comparison data point if quota permits
-  (BACKLOG).
+- **Decision:** Reported eval metrics run on **Qwen2.5-VL-3B-Instruct** via
+  `transformers`. Gemini 2.5 Flash is retained as a development backend and a
+  no-GPU fallback for users who can't run a local VLM. The Qwen backend is a
+  real implementation, not a stub.
+- **Why:** Open weights are more reproducible (DD-14) — a Qwen checkpoint is
+  frozen by hash forever, whereas a hosted model ID can be deprecated or shift
+  behavior. Running the eval on an open model also makes the cross-model
+  comparison itself a result (DD-13, DD-17).
+- **Why 3B and not 7B/72B:** 3B fits a Colab free T4 in fp16 (~7 GB) and
+  consumer GPUs in 4-bit (~4 GB), so the numbers are actually reproducible. 7B
+  is a scaling-comparison data point if quota permits (see BACKLOG).
 - **Consequences:** Dual-backend dev workflow — Gemini iterated locally on
-  Intel/no-GPU machines, Qwen developed and exercised via Colab. The README
-  must document both paths. `transformers` + `torch` stay in the `qwen`
-  optional extra so the no-GPU install path remains lean.
-- **Rejected:** Open-weight-only (drop Gemini). Removes the local-dev
-  feedback loop on machines without CUDA/MPS and adds friction for a reviewer
-  without GPU access.
-- **Not the verifier (clarification re: JD references):** V-JEPA and
-  VideoMAE are *representation* models, not VLMs — no language conditioning,
-  no VQA capability. They cannot answer "Is X visible?" and so are not
-  candidates for the verifier role. A stretch use (temporal-saliency frame
-  sampling) is recorded in BACKLOG. Similarly, QwQ-32B is a text-only
-  reasoning model, not a VLM — easy to confuse with the Qwen-VL family but
-  unrelated.
+  no-GPU machines, Qwen developed and exercised via Colab. `transformers` +
+  `torch` stay in the `qwen` optional extra so the no-GPU install stays lean.
+- **Rejected:** Open-weight-only (drop Gemini). Removes the local-dev feedback
+  loop on machines without CUDA/MPS and adds friction for users without GPU
+  access.
+- **Not the verifier (clarification):** V-JEPA and VideoMAE are *representation*
+  models, not VLMs — no language conditioning, no VQA capability. They cannot
+  answer "Is X visible?" and so are not candidates for the verifier role. A
+  stretch use (temporal-saliency frame sampling) is recorded in BACKLOG.
+  Similarly, QwQ-32B is a text-only reasoning model, not a VLM — easy to confuse
+  with the Qwen-VL family but unrelated.
+
+## DD-17: Eval is a cross-model study; first-run outcomes
+
+- **Date:** 2026-05-26 · **Status:** Accepted *(extends DD-13, closes DD-12)*
+- **Decision:** Run the eval as a *cross-model comparison* — every sample is
+  audited by both verifiers (Qwen, Gemini) plus the text baseline — rather than
+  a single-verifier pass. The real-hallucination captions are generated by one
+  model (Qwen), so that verifier is a *self-audit* and the other a *cross-audit*.
+- **Why the pivot:** The original same-model setup (Qwen captions *and* verifies
+  the real subset) is degenerate — a model rubber-stamps its own output, and the
+  text baseline re-captioning with the same greedy model compares identical
+  text. Both produced meaningless zeros. Splitting generator from verifier turns
+  that artifact into the headline finding and makes the baseline non-degenerate
+  (it re-captions with a *different* model). Implemented as
+  `run_cross_model_eval` / `CrossModelReport` (verifier-independent baseline
+  scored once).
+- **First-run findings (FineVideo pilot, 5 videos, 75 synthetic + 30 real):**
+  1. *Self-consistency blind spot:* Qwen self-audit caught 0/6 real
+     hallucinations; Gemini cross-audit caught 3/6.
+  2. *Open vs closed auditor (synthetic):* Qwen P0.97/R0.71/F1 0.82 (precise) >
+     Gemini P0.63/R0.88/F1 0.73 (high-recall) > baseline F1 0.71 (flags all).
+  3. *Calibration:* Qwen confidence is discriminative; Gemini's is flat
+     (overconfident), so its confidence is not usable for threshold gating.
+- **Closes DD-12:** the confidence sweep validates the shipped default of
+  **0.3** for the Qwen verifier (it sits on the best-F1 plateau, 0.2–0.4); no
+  code change needed. Gemini's flat sweep means its default is not meaningfully
+  tunable — recorded as a limitation, not a tuned value.
+- **Caveats (stated, not hidden):** pilot scale (6 real positives →
+  directional only); synthetic mix skewed to entity-injection (curated swap
+  tables under-matched FineVideo's domain vocabulary); cross-audit precision on
+  the real subset is still low (0.27) — independent auditing helps, not solves.

@@ -18,8 +18,8 @@ check: lint typecheck test
 
 demo:
 	uv run vidaudit audit \
-		--video examples/sample.mp4 \
-		--descriptions examples/sample_descriptions.json \
+		--video examples/clip.mp4 \
+		--descriptions examples/descs.json \
 		--output report.json
 
 eval:

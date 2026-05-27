@@ -1,0 +1,17 @@
+[
+  {
+    "timestamp_start": 1.0,
+    "timestamp_end": 4.0,
+    "description": "A person rides a bicycle towards the camera at a busy city intersection"
+  },
+  {
+    "timestamp_start": 4.0,
+    "timestamp_end": 9.0,
+    "description": "Two yellow tram cars pass each other as pedestrians cross the street"
+  },
+  {
+    "timestamp_start": 13.0,
+    "timestamp_end": 15.0,
+    "description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup"
+  }
+]

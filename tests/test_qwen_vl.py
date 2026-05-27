@@ -1,7 +1,7 @@
 """Tests for the Qwen2.5-VL backend.
 
 The HuggingFace runner is mocked via the ``runner=`` injection seam — no
-``transformers``, no ``torch``, no model download (CLAUDE.md §6). The runner
+``transformers``, no ``torch``, no model download. The runner
 is a plain callable ``(image, prompt) -> str``, so a tiny stub stands in
 for the multi-GB model.
 """
@@ -128,7 +128,7 @@ def test_verify_batch_returns_in_input_order(png_image: Image.Image) -> None:
 
     assert [r.claim for r in results] == ["red jacket", "coffee cup"]
     assert [r.verdict for r in results] == ["supported", "unsupported"]
-    # Batch prompt is one call, not one-per-claim (DD-6).
+    # Batch prompt is one call, not one-per-claim.
     assert len(runner.prompts) == 1
     assert "red jacket" in runner.prompts[0]
     assert "coffee cup" in runner.prompts[0]
