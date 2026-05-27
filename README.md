@@ -30,37 +30,7 @@ of design decisions and their tradeoffs is in [DESIGN.md](DESIGN.md).
 
 ## Example
 
-```
-$ vidaudit audit --video clip.mp4 --descriptions descs.json --backend gemini
-
-──────────────────────────── vidaudit report ────────────────────────────
-video:    clip.mp4
-backend:  gemini-2.5-flash
-
-╭─ Segment 1.0–4.0s  verdict=clean  grounding=1.00  flagged=0 ──────────────╮
-│ A person rides a bicycle towards the camera at a busy city intersection   │
-╰───────────────────────────────────────────────────────────────────────────╯
- ✓ person                  object  supported  1.00  ·  Individuals visible…
- ✓ bicycle                 object  supported  1.00  ·  A person riding a bike…
- ✓ busy city intersection  object  supported  0.90  ·  Pedestrians, traffic…
-
-╭─ Segment 4.0–9.0s  verdict=partial_hallucination  grounding=0.67  flagged=1 ╮
-│ Two yellow tram cars pass each other as pedestrians cross the street        │
-╰───────────────────────────────────────────────────────────────────────────╯
- ✗ two yellow tram cars  object  unsupported  1.00  FLAG  Single long yellow
-                                                          train, not two cars.
- ✓ pedestrians           object  supported    1.00  ·     People walking…
- ✓ street                object  supported    1.00  ·     Asphalt road visible…
-
-╭─ Segment 13.0–15.0s  verdict=full_hallucination  grounding=0.25  flagged=3 ╮
-│ A person in a red jacket walks past the Eiffel Tower holding a coffee cup   │
-╰───────────────────────────────────────────────────────────────────────────╯
- ✓ person           object  supported    1.00  ·     A man walking in frame…
- ✗ red jacket       object  unsupported  0.90  FLAG  No red jacket visible.
- ✗ the Eiffel Tower entity  unsupported  1.00  FLAG  Tower is the Berlin TV
-                                                     Tower, not the Eiffel.
- ✗ coffee cup       object  unsupported  0.90  FLAG  No coffee cup in frame.
-```
+![vidaudit terminal report: a clean segment, a partial hallucination, and a fully hallucinated segment](examples/cli.png)
 
 The auditor catches the fabricated Eiffel Tower (it's the Berlin TV Tower), the
 nonexistent red jacket and coffee cup, and the miscount of tram cars — while
