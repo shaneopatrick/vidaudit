@@ -1,9 +1,9 @@
-"""Weak captioners for harvesting *real* hallucinations (DD-13).
+"""Weak captioners for harvesting *real* hallucinations.
 
 The real-hallucination subset is built by running a captioner over sampled
 frames and keeping its naturally-generated descriptions — these resemble the
 error distribution of a production system far better than synthetic mutations
-do, which is what gives the eval face validity (DD-13).
+do, which is what gives the eval face validity.
 
 A :class:`Captioner` is just ``(image) -> str``. Two concrete ones ship here:
 
@@ -65,8 +65,8 @@ class GeminiCaptioner:
     Args:
         model: Gemini model id.
         prompt: Captioning instruction.
-        client: Injected SDK client (tests pass a mock; never hits the real
-            API in CI per CLAUDE.md §6).
+        client: Injected SDK client (tests pass a mock so CI never hits the
+            real API).
     """
 
     def __init__(

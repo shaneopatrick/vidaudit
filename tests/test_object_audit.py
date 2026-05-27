@@ -24,8 +24,8 @@ class _FakeVLM(VLMBackend):
 
     Overrides ``verify_batch`` directly (rather than inheriting the ABC's
     loop) so tests can distinguish batched calls from per-claim calls —
-    required to assert DD-6 batching of context-frame checks. The ABC's
-    default loop is covered separately in ``test_vlm_base``.
+    required to assert batching of context-frame checks. The ABC's default
+    loop is covered separately in ``test_vlm_base``.
     """
 
     def __init__(self, responder: Responder) -> None:
@@ -94,7 +94,7 @@ def test_all_supported_is_clean_grounding_one() -> None:
 
 
 def test_low_confidence_unsupported_is_neither_flagged_nor_escalated() -> None:
-    """DD-7: a low-confidence "unsupported" is uncertain, not a hallucination."""
+    """A low-confidence "unsupported" is uncertain, not a hallucination."""
     seg = _segment("woman")
     primary, ctx = _image("red"), _image("blue")
     vlm = _FakeVLM(lambda _img, claim: _unsupported(claim, conf=0.2))
@@ -147,7 +147,7 @@ def test_unsupported_with_no_context_frames_is_flagged() -> None:
 
 
 def test_context_checks_are_batched_per_frame() -> None:
-    """DD-6: each context frame is ONE batched call, not one call per claim.
+    """Each context frame is ONE batched call, not one call per claim.
 
     Without batching the audit would issue (#unsupported_claims × #context_frames)
     individual API calls. With batching, every pending claim is sent to each
@@ -209,7 +209,7 @@ def test_mixed_claims_yield_partial_hallucination() -> None:
 
 
 def test_verdict_thresholds_are_tunable() -> None:
-    """DD-12: thresholds are defaults, not asserted; CLI surfaces them."""
+    """Thresholds are defaults, not asserted; the CLI surfaces them."""
     seg = _segment("a", "b", "c", "d", "e")
     supported_set = {"a", "b", "c", "d"}  # 4/5 = 0.8
 

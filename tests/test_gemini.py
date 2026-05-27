@@ -1,8 +1,7 @@
 """Tests for the Gemini backend.
 
-The google-genai SDK is mocked — tests must never hit the real API
-(CLAUDE.md §6). The backend takes an optional ``client=`` parameter for
-exactly this purpose.
+The google-genai SDK is mocked — tests must never hit the real API. The
+backend takes an optional ``client=`` parameter for exactly this purpose.
 """
 
 from __future__ import annotations
@@ -82,7 +81,7 @@ def test_verify_claim_returns_verification_result(
 def test_verify_claim_passes_pydantic_model_as_response_schema(
     gemini: tuple[GeminiBackend, MagicMock], png_image: Image.Image
 ) -> None:
-    """DD-10: schema must be the Pydantic class itself, not a JSON-Schema dict."""
+    """The schema must be the Pydantic class itself, not a JSON-Schema dict."""
     backend, client = gemini
     client.models.generate_content.return_value = _single_response()
 

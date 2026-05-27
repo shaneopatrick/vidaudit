@@ -1,16 +1,15 @@
 """Audit one description segment against its sampled frames.
 
-This is the orchestration of DD-1 (claims-based verification): the parser
-decomposes a description into claims, the frame sampler delivers a primary
-frame plus context frames spanning the segment (DD-9), and this module wires
-each claim through the VLM, applying DD-7 confidence semantics and DD-12
-eval-derived thresholds.
+Each claim is verified independently against the frame: the parser decomposes
+a description into claims, the frame sampler delivers a primary frame plus
+context frames spanning the segment, and this module wires each claim through
+the VLM, applying the verdict-confidence semantics and the grounding-score
+thresholds.
 
 The audit receives frames already sampled — the caller (CLI orchestration)
-is responsible for resolving DD-9's missing-end fallback chain and
-constructing the ``[primary, *context]`` frame list, since that decision
-needs the ordered segment list and the video, neither of which are in this
-module's contract.
+is responsible for resolving the missing-end fallback chain and constructing
+the ``[primary, *context]`` frame list, since that decision needs the ordered
+segment list and the video, neither of which are in this module's contract.
 """
 
 from __future__ import annotations
@@ -66,22 +65,22 @@ def audit_segment(
        primary frame, check the context frames; a confident ``supported``
        from any context frame rescues the claim and overrides the result.
 
-    Per DD-7, ``confidence`` is the VLM's confidence in its verdict. A
-    low-confidence ``unsupported`` is treated as ``uncertain`` — neither
-    counted toward grounding nor flagged as a hallucination — and is NOT
-    escalated to context frames.
+    ``confidence`` is the VLM's confidence in its verdict. A low-confidence
+    ``unsupported`` is treated as ``uncertain`` — neither counted toward
+    grounding nor flagged as a hallucination — and is NOT escalated to context
+    frames.
 
     Args:
         segment: The decomposed segment whose claims will be checked.
         frames: ``[primary, *context]`` for this segment. Primary at index 0
             per the frame_sampler contract.
         vlm: The VLM backend.
-        confidence_threshold: Minimum verdict-confidence (DD-7) for an
-            ``unsupported`` verdict to be taken seriously enough to flag and
-            for a ``supported`` context frame to rescue a claim. Default 0.3.
-        clean_threshold: Lower bound on ``grounding_score`` for the
-            ``"clean"`` verdict (DD-12 default — surface as a CLI flag and
-            calibrate via the eval threshold sweep). Default 0.8.
+        confidence_threshold: Minimum verdict-confidence for an ``unsupported``
+            verdict to be taken seriously enough to flag and for a
+            ``supported`` context frame to rescue a claim. Default 0.3.
+        clean_threshold: Lower bound on ``grounding_score`` for the ``"clean"``
+            verdict (a CLI-tunable default calibrated from the eval threshold
+            sweep). Default 0.8.
         partial_threshold: Lower bound on ``grounding_score`` for
             ``"partial_hallucination"``; below this is
             ``"full_hallucination"``. Default 0.4.
@@ -119,16 +118,16 @@ def audit_segment(
     flagged = [False] * len(segment.claims)
 
     # Claims that came back confidently "unsupported" on the primary frame —
-    # candidates for context-frame rescue. Per DD-7, a LOW-confidence
-    # "unsupported" is uncertain, not a hallucination, and is NOT escalated.
+    # candidates for context-frame rescue. A LOW-confidence "unsupported" is
+    # uncertain, not a hallucination, and is NOT escalated.
     pending: set[int] = {
         i
         for i, v in enumerate(primary_results)
         if v.verdict == "unsupported" and v.confidence > confidence_threshold
     }
 
-    # Batch all pending claims against each context frame in turn (DD-6) —
-    # one VLM call per context frame, not one per (claim, frame) pair. We
+    # Batch all pending claims against each context frame in turn — one VLM
+    # call per context frame, not one per (claim, frame) pair. We
     # short-circuit at the frame level once every pending claim has been
     # rescued (still better than re-checking already-rescued claims).
     for ctx_frame in context:

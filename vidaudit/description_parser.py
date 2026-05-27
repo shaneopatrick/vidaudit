@@ -1,13 +1,13 @@
 """Parse time-coded descriptions and decompose them into verifiable claims.
 
-This is the deterministic front of the pipeline (DESIGN.md DD-1, DD-2): each
-description is split into independent noun-phrase / named-entity claims using
-spaCy, not an LLM. Extraction precision upper-bounds the whole tool's accuracy,
-so generic non-visual phrases are filtered and overlapping spans deduped.
+This is the deterministic front of the pipeline: each description is split into
+independent noun-phrase / named-entity claims using spaCy, not an LLM.
+Extraction precision upper-bounds the whole tool's accuracy, so generic
+non-visual phrases are filtered and overlapping spans deduped.
 
 `timestamp_end` is preserved exactly as given (including ``None``); resolving a
 missing end into an effective span is the orchestration's job, not the
-parser's (DD-9).
+parser's.
 """
 
 from __future__ import annotations
@@ -68,7 +68,7 @@ class DescriptionSegment(BaseModel):
     """One time-coded description plus the claims decomposed from it.
 
     ``timestamp_end`` is ``None`` when the input omitted it; it is never
-    fabricated here (see DESIGN.md DD-9).
+    fabricated here.
     """
 
     timestamp_start: float
@@ -190,7 +190,7 @@ def parse_descriptions(path: Path) -> list[DescriptionSegment]:
 
     The input is a JSON array of objects with ``timestamp_start``,
     ``description``, and an optional ``timestamp_end``. Validated with Pydantic
-    at the boundary (CLAUDE.md §7).
+    at the boundary.
 
     Args:
         path: Path to the descriptions JSON file.

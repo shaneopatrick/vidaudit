@@ -1,4 +1,4 @@
-"""Verification-result cache shared across VLM backends (DESIGN.md DD-11).
+"""Verification-result cache shared across VLM backends.
 
 Keyed by SHA-1 of (frame PNG bytes, claim text, model identifier). Cached
 results are serialized :class:`VerificationResult` JSON so they round-trip
@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 def cache_dir() -> Path:
     """Resolve and ensure the verification cache directory.
 
-    Honors ``VIDAUDIT_CACHE_DIR`` (CLAUDE.md §7), defaulting to
+    Honors ``VIDAUDIT_CACHE_DIR``, defaulting to
     ``.vidaudit_cache/`` next to the working directory.
     """
     env = os.environ.get("VIDAUDIT_CACHE_DIR")

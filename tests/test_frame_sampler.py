@@ -1,6 +1,6 @@
 """Tests for vidaudit.frame_sampler.
 
-Per CLAUDE.md §6, ffmpeg/ffprobe subprocess calls are mocked — tests must
+ffmpeg/ffprobe subprocess calls are mocked — tests must
 never require a real video file. A dummy video file is created so existence
 checks pass; everything downstream is faked.
 """
@@ -88,7 +88,7 @@ def test_sample_frames_returns_primary_plus_context(
 def test_sample_frames_uses_ss_after_i_for_accurate_seek(
     video: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """DD-8: `-ss` must come AFTER `-i`, or ffmpeg snaps to the nearest keyframe."""
+    """`-ss` must come AFTER `-i`, or ffmpeg snaps to the nearest keyframe."""
     fake_run, calls = _fake_run_factory()
     monkeypatch.setattr(subprocess, "run", fake_run)
 
@@ -103,7 +103,7 @@ def test_sample_frames_uses_ss_after_i_for_accurate_seek(
 def test_sample_frames_subprocess_called_with_list_form(
     video: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """CLAUDE.md §7: never shell-string a subprocess command."""
+    """Never shell-string a subprocess command — list form only."""
     captured: list[dict[str, object]] = []
 
     def recording_run(

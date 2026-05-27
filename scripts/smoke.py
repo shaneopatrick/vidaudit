@@ -7,7 +7,7 @@ extraction noise — *before* we layer the CLI on top.
 
 Not a unit test. Hits the live Gemini API; requires ``GEMINI_API_KEY``.
 ``argparse`` is used here rather than Typer on purpose so this script stays
-independent of the real CLI (step 7), which CLAUDE.md §4 specifies uses Typer.
+independent of the real Typer-based CLI.
 
 Usage:
     uv run python scripts/smoke.py \\

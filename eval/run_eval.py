@@ -1,22 +1,22 @@
 """Run vidaudit against the labeled dataset and score it vs the baseline.
 
-This is the project's headline deliverable (DD-15): it shows the
-claims-decomposition approach (DD-1) beats the naive "two noisy descriptions"
-baseline on *realistic* errors, with the numbers split by subset so a reviewer
-can see where accuracy comes from (DD-13).
+This is the project's headline deliverable: it shows the claims-decomposition
+approach beats the naive "two noisy descriptions" baseline on *realistic*
+errors, with the numbers split by subset so a reviewer can see where accuracy
+comes from.
 
 What it produces:
 
 * **vidaudit vs baseline**, side by side, as precision / recall / F1.
-* **Synthetic and real subsets reported separately** — never averaged (DD-13).
-* **A confidence-threshold sweep** — the shipped default (DD-12) is *picked*
-  here from the best-F1 point, not asserted. The sweep is cheap because the
-  verification cache (DD-11) means re-scoring at a new threshold replays cached
-  verdicts instead of re-calling the VLM.
+* **Synthetic and real subsets reported separately** — never averaged.
+* **A confidence-threshold sweep** — the shipped default is *picked* here from
+  the best-F1 point, not asserted. The sweep is cheap because the verification
+  cache means re-scoring at a new threshold replays cached verdicts instead of
+  re-calling the VLM.
 * **Extraction recall** — the fraction of mutated spans the parser actually
-  surfaced as claims, isolating extraction failures from verification failures
-  (DD-13): a claim never extracted can never be flagged, and that is a
-  different problem from the VLM getting the verdict wrong.
+  surfaced as claims, isolating extraction failures from verification failures:
+  a claim never extracted can never be flagged, and that is a different problem
+  from the VLM getting the verdict wrong.
 
 The scoring is pure and unit-tested. The VLM/frame/captioner wiring is injected
 (:func:`make_vidaudit_auditor`, :func:`make_frame_for`) so this module stays
@@ -71,7 +71,7 @@ def ground_truth_positive(sample: EvalSample) -> bool | None:
     Synthetic samples derive ground truth from ``mutation_type`` (a mutation
     means a planted hallucination; the clean control is negative). Real samples
     use the hand-label ``real_is_hallucinated`` (``None`` = unlabeled → excluded
-    from metrics, DD-13).
+    from metrics).
     """
     if sample.source == "synthetic":
         return sample.mutation_type is not None
@@ -82,7 +82,7 @@ def text_similarity(a: str, b: str) -> float:
     """Token-set Jaccard similarity in [0, 1].
 
     Deliberately simple and order-independent — this is the *baseline's*
-    similarity measure (the "two noisy descriptions" approach DD-1 rejects),
+    similarity measure (the "two noisy descriptions" approach vidaudit rejects),
     not vidaudit's. Two empty strings are identical; one empty is disjoint.
     """
     ta = set(re.findall(r"\w+", a.lower()))
@@ -229,7 +229,7 @@ class VerifierResult(BaseModel):
 
 
 class CrossModelReport(BaseModel):
-    """Compare multiple verifier models as hallucination auditors (DD-13).
+    """Compare multiple verifier models as hallucination auditors.
 
     On the **synthetic** subset the description under test is mutated
     ground-truth narration (no model generated it), so this is a clean
@@ -344,7 +344,7 @@ def run_eval(
         samples: Labeled eval samples (synthetic + real).
         auditor: ``(sample, confidence_threshold) -> SegmentAuditResult | None``.
             Returns ``None`` when a sample can't be audited (no frame). Cheap
-            to call repeatedly thanks to the verification cache (DD-11).
+            to call repeatedly thanks to the verification cache.
         baseline_caption_for: ``(sample) -> caption | None`` — a fresh caption
             of the sample's frame for the text-comparison baseline.
         confidence_grid: Confidence thresholds to sweep for vidaudit.
@@ -434,7 +434,7 @@ def run_cross_model_eval(
     baseline_similarity_threshold: float = _DEFAULT_BASELINE_THRESHOLD,
     fallback_confidence_threshold: float = 0.3,
 ) -> CrossModelReport:
-    """Score several verifier models as auditors over the same samples (DD-13).
+    """Score several verifier models as auditors over the same samples.
 
     Each verifier gets its own threshold sweep and per-subset confusion. The
     baseline (verifier-independent) is scored once. ``generator_model`` names
@@ -559,7 +559,7 @@ def make_frame_for(
     """Build a ``frame_for`` that samples frames from ``video_dir/{video_id}.mp4``.
 
     Samples the primary frame at the segment midpoint with context frames
-    across the span (DD-9, simplified: explicit-end midpoint). Returns ``None``
+    across the span (simplified: explicit-end midpoint). Returns ``None``
     if the video is missing, the sampler yields nothing, or extraction fails.
 
     Frame extraction failures (e.g. a FineVideo metadata timestamp that lands
@@ -608,7 +608,7 @@ def make_vidaudit_auditor(
 
     The mutated description is parsed into claims and audited against the
     sampled frame at the given confidence threshold. Repeated calls (the
-    sweep) reuse cached verifications (DD-11) so only the first pass spends VLM
+    sweep) reuse cached verifications so only the first pass spends VLM
     quota.
     """
     from vidaudit.auditors.object_audit import audit_segment
@@ -679,7 +679,7 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     Not exercised by unit tests (it shells out to a real backend + videos);
     the scoring it relies on is tested directly. The canonical run is the
-    Colab notebook (step 12).
+    Colab notebook.
     """
     from dotenv import load_dotenv
     from rich.console import Console

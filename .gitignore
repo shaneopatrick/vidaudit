@@ -60,3 +60,6 @@ eval/results/
 # Claude
 .claude/
 .claude-skills/
+
+# large demo media — keep out of git
+examples/*.mp4

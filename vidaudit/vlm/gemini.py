@@ -1,13 +1,12 @@
 """Gemini 2.5 Flash backend for claim verification.
 
-Closed-source dev/no-GPU fallback (DESIGN.md DD-16). The canonical eval runs
-on the Qwen open-weight backend; this backend exists for local iteration on
-machines without GPUs and as a comparison point in the cross-backend eval
-(DD-13).
+Closed-source dev/no-GPU fallback. The canonical eval runs on the Qwen
+open-weight backend; this backend exists for local iteration on machines
+without GPUs and as a comparison point in the cross-model eval.
 
 Uses Gemini's native structured output: a Pydantic :class:`_GeminiVerdict`
 (or ``list[_GeminiBatchVerdict]``) is passed as ``response_schema`` so the
-SDK returns validated, typed objects via ``response.parsed`` (DD-10). No
+SDK returns validated, typed objects via ``response.parsed``. No
 prompt-engineered JSON format hints, no regex fallback as the primary path.
 """
 
@@ -47,7 +46,7 @@ _EVIDENCE_DESCRIPTION = (
 
 
 class _GeminiVerdict(BaseModel):
-    """Response schema for a single-claim Gemini call (DD-10)."""
+    """Response schema for a single-claim Gemini call."""
 
     verdict: Literal["supported", "unsupported", "uncertain"] = Field(
         description="Whether the claim is visually supported by the frame."

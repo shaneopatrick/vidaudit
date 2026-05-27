@@ -1,4 +1,4 @@
-"""FineVideo loader + labeled mutation dataset (PLAN.md component 9, DD-13).
+"""FineVideo loader + labeled mutation dataset.
 
 Three things live here:
 
@@ -6,17 +6,17 @@ Three things live here:
 2. **Synthetic mutations** — deterministic, *plausible* corruptions of clean
    descriptions (object swap, attribute change, entity injection). Plausible,
    context-consistent swaps via hand-curated tables — random swaps are
-   trivially detectable and would inflate the metrics (DD-13). Curated tables
-   are also fully auditable: a reviewer can see every possible swap.
+   trivially detectable and would inflate the metrics. Curated tables are also
+   fully auditable: a reviewer can see every possible swap.
 3. **Real hallucinations** — pairs of (ground-truth, captioner-generated)
    descriptions; the captioner's natural errors are the realistic subset that
-   gives the eval face validity (DD-13). Captioning is injected
+   gives the eval face validity. Captioning is injected
    (:mod:`eval.captioner`) so this module stays GPU/network-free for tests.
 
 Every produced :class:`EvalSample` carries a ``source`` (``synthetic`` /
 ``real``) and, for synthetic mutations, the exact span that was corrupted —
 that span is the ground-truth "should be flagged" claim the eval scores
-against. The two subsets are reported separately, never averaged (DD-13).
+against. The two subsets are reported separately, never averaged.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class MutationType(str, Enum):
 
 # Object head-noun -> plausible, context-consistent replacements. Swaps stay
 # within a rough semantic neighbourhood (a likely co-occurring object) so the
-# corruption isn't trivially detectable (DD-13). Keyed by singular lemma.
+# corruption isn't trivially detectable. Keyed by singular lemma.
 _PLAUSIBLE_SWAPS: dict[str, list[str]] = {
     "dog": ["cat", "fox"],
     "cat": ["dog", "rabbit"],
@@ -118,13 +118,13 @@ class FineVideoChapter(BaseModel):
 
 
 class EvalSample(BaseModel):
-    """A labeled clean-vs-mutated pair for the eval (DD-13).
+    """A labeled clean-vs-mutated pair for the eval.
 
     For synthetic mutations, ``mutated_span`` is the false phrase introduced
     (the claim the auditor *should* flag) and ``original_span`` is what it
     replaced. A clean control has ``mutation_type=None`` and no spans. A real
     sample has ``source="real"``, no mutation type, and unlabeled spans — its
-    hallucinated claims are hand-labeled during the eval run (DD-13).
+    hallucinated claims are hand-labeled during the eval run.
     """
 
     video_id: str
@@ -136,7 +136,7 @@ class EvalSample(BaseModel):
     original_span: str | None = None
     mutated_span: str | None = None
     source: Literal["synthetic", "real"]
-    # Hand-label for the real subset (DD-13): True if the caption contains a
+    # Hand-label for the real subset: True if the caption contains a
     # hallucination, False if clean, None if not yet labeled. Synthetic samples
     # derive their ground truth from ``mutation_type`` and ignore this.
     real_is_hallucinated: bool | None = None
@@ -276,13 +276,13 @@ def build_real_samples(
     captioner: Captioner,
     frame_for: Callable[[FineVideoChapter], Image.Image | None],
 ) -> list[EvalSample]:
-    """Harvest real hallucinations by captioning each chapter's frame (DD-13).
+    """Harvest real hallucinations by captioning each chapter's frame.
 
     For each chapter a representative frame is fetched via ``frame_for`` and
     passed to ``captioner``; the generated caption becomes ``mutated`` and the
     FineVideo ground-truth becomes ``clean``. Hallucinated claims in the
     caption are hand-labeled later in the eval run — this builder does not
-    auto-label them (DD-13 keeps extraction and verification quality separable).
+    auto-label them.
 
     ``frame_for`` returning ``None`` (e.g. timestamp past the clip) skips the
     chapter with a warning.
