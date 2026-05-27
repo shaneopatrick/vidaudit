@@ -1,0 +1,195 @@
+{
+  "metadata": {
+    "video": "examples/clip.mp4",
+    "backend": "gemini-2.5-flash",
+    "generated_at": "2026-05-27T03:19:21.005377Z",
+    "confidence_threshold": 0.3,
+    "clean_threshold": 0.8,
+    "partial_threshold": 0.4,
+    "vidaudit_version": "0.1.0"
+  },
+  "summary": {
+    "total_descriptions": 3,
+    "total_claims": 10,
+    "verified_claims": 6,
+    "hallucinated_claims": 4,
+    "uncertain_claims": 0,
+    "overall_grounding_score": 0.6,
+    "descriptions_flagged": 2
+  },
+  "segments": [
+    {
+      "timestamp_start": 1.0,
+      "timestamp_end": 4.0,
+      "end_inferred": false,
+      "description": "A person rides a bicycle towards the camera at a busy city intersection",
+      "grounding_score": 1.0,
+      "hallucination_count": 0,
+      "verdict": "clean",
+      "claims": [
+        {
+          "claim": {
+            "text": "person",
+            "claim_type": "object",
+            "source_description": "A person rides a bicycle towards the camera at a busy city intersection"
+          },
+          "verification": {
+            "claim": "person",
+            "verdict": "supported",
+            "confidence": 1.0,
+            "evidence": "Multiple individuals are clearly visible walking on the sidewalk and riding a bicycle in the frame."
+          },
+          "flagged": false
+        },
+        {
+          "claim": {
+            "text": "bicycle",
+            "claim_type": "object",
+            "source_description": "A person rides a bicycle towards the camera at a busy city intersection"
+          },
+          "verification": {
+            "claim": "bicycle",
+            "verdict": "supported",
+            "confidence": 1.0,
+            "evidence": "A person is riding a bicycle in the foreground, and several other bicycles are parked on the sidewalk."
+          },
+          "flagged": false
+        },
+        {
+          "claim": {
+            "text": "busy city intersection",
+            "claim_type": "object",
+            "source_description": "A person rides a bicycle towards the camera at a busy city intersection"
+          },
+          "verification": {
+            "claim": "busy city intersection",
+            "verdict": "supported",
+            "confidence": 0.9,
+            "evidence": "The frame displays multiple pedestrians, vehicles, traffic lights, street signs, and an elevated train line, all indicative of a busy urban intersection."
+          },
+          "flagged": false
+        }
+      ]
+    },
+    {
+      "timestamp_start": 4.0,
+      "timestamp_end": 9.0,
+      "end_inferred": false,
+      "description": "Two yellow tram cars pass each other as pedestrians cross the street",
+      "grounding_score": 0.6666666666666666,
+      "hallucination_count": 1,
+      "verdict": "partial_hallucination",
+      "claims": [
+        {
+          "claim": {
+            "text": "two yellow tram cars",
+            "claim_type": "object",
+            "source_description": "Two yellow tram cars pass each other as pedestrians cross the street"
+          },
+          "verification": {
+            "claim": "two yellow tram cars",
+            "verdict": "unsupported",
+            "confidence": 1.0,
+            "evidence": "The image shows a single long yellow train, not two distinct tram cars."
+          },
+          "flagged": true
+        },
+        {
+          "claim": {
+            "text": "pedestrians",
+            "claim_type": "object",
+            "source_description": "Two yellow tram cars pass each other as pedestrians cross the street"
+          },
+          "verification": {
+            "claim": "pedestrians",
+            "verdict": "supported",
+            "confidence": 1.0,
+            "evidence": "Multiple people are visible walking on the sidewalk and street."
+          },
+          "flagged": false
+        },
+        {
+          "claim": {
+            "text": "street",
+            "claim_type": "object",
+            "source_description": "Two yellow tram cars pass each other as pedestrians cross the street"
+          },
+          "verification": {
+            "claim": "street",
+            "verdict": "supported",
+            "confidence": 1.0,
+            "evidence": "An asphalt road with painted lines and a curb is prominently visible in the foreground and midground."
+          },
+          "flagged": false
+        }
+      ]
+    },
+    {
+      "timestamp_start": 13.0,
+      "timestamp_end": 15.0,
+      "end_inferred": false,
+      "description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup",
+      "grounding_score": 0.25,
+      "hallucination_count": 3,
+      "verdict": "full_hallucination",
+      "claims": [
+        {
+          "claim": {
+            "text": "person",
+            "claim_type": "object",
+            "source_description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup"
+          },
+          "verification": {
+            "claim": "person",
+            "verdict": "supported",
+            "confidence": 1.0,
+            "evidence": "Multiple individuals are visible, including a man walking in the foreground and others near the tram."
+          },
+          "flagged": false
+        },
+        {
+          "claim": {
+            "text": "red jacket",
+            "claim_type": "object",
+            "source_description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup"
+          },
+          "verification": {
+            "claim": "red jacket",
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "evidence": "No person in the frame is clearly wearing a red jacket."
+          },
+          "flagged": true
+        },
+        {
+          "claim": {
+            "text": "the Eiffel Tower",
+            "claim_type": "entity",
+            "source_description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup"
+          },
+          "verification": {
+            "claim": "the Eiffel Tower",
+            "verdict": "unsupported",
+            "confidence": 1.0,
+            "evidence": "The tall tower visible in the background is the Berlin TV Tower, not the Eiffel Tower."
+          },
+          "flagged": true
+        },
+        {
+          "claim": {
+            "text": "coffee cup",
+            "claim_type": "object",
+            "source_description": "A person in a red jacket walks past the Eiffel Tower while holding a coffee cup"
+          },
+          "verification": {
+            "claim": "coffee cup",
+            "verdict": "unsupported",
+            "confidence": 0.9,
+            "evidence": "There is no visible coffee cup in the frame."
+          },
+          "flagged": true
+        }
+      ]
+    }
+  ]
+}
