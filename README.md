@@ -81,8 +81,10 @@ brew install ffmpeg          # macOS (apt install ffmpeg on Debian/Ubuntu)
 
 git clone https://github.com/shaneopatrick/vidaudit.git
 cd vidaudit
-make install                 # uv sync + downloads the spaCy en_core_web_sm model
+make install                 # uv sync, spaCy en_core_web_sm, and the example clip
 ```
+
+`make install` pulls the example clip used throughout this README (a short street-scene video from [Pexels](https://www.pexels.com/video/37552285/), free to use under the Pexels license) into `examples/clip.mp4`.
 
 The default Gemini backend needs an API key:
 
