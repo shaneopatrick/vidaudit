@@ -1,8 +1,13 @@
 .PHONY: install test lint typecheck check demo eval
 
-install:
+EXAMPLE_CLIP_URL := https://www.pexels.com/download/video/37552285/?fps=25.0&h=720&w=1280
+
+install: examples/clip.mp4
 	uv sync
 	uv run python -m spacy download en_core_web_sm
+
+examples/clip.mp4:
+	curl -L --fail -o examples/clip.mp4 "$(EXAMPLE_CLIP_URL)"
 
 test:
 	uv run pytest tests/ -v
